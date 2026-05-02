@@ -3,82 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crystal Battle: Ultimate Edition</title>
+    <title>Crystal Battle: 5 Maps & Bot Guns</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; user-select: none; touch-action: none; color: #0ff; }
         canvas { display: block; }
-        
-        /* Блокировка вертикального режима */
-        #orientation-lock {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; color: #fff; z-index: 10000;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center;
-        }
-        @media screen and (orientation: portrait) {
-            #orientation-lock { display: flex; }
-        }
-
+        #orientation-lock { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        @media screen and (orientation: portrait) { #orientation-lock { display: flex; } }
         .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); z-index: 100; text-align: center; }
         .hidden { display: none !important; }
-        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 10px 20px; font-size: 1em; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 5px; }
-        button:active, button.active { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
-        
+        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 10px 20px; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 5px; }
+        button:active, button.active { background: #0ff; color: #000; }
         #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; }
-        #xp-bar { width: 150px; height: 10px; border: 1px solid #0ff; margin-top: 5px; background: rgba(0,255,255,0.1); }
-        #xp-fill { width: 0%; height: 100%; background: #f0f; transition: width 0.2s; }
-        
-        #live-shop-btn { position: absolute; top: 10px; right: 10px; z-index: 60; border-color: #f0f; color: #f0f; font-weight: bold; }
-        #shop-overlay { background: rgba(0,10,10,0.98); display: none; padding: 10px; z-index: 200; overflow-y: auto; border: 2px solid #f0f; }
-        
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; max-width: 600px; }
-        .item { border: 1px solid #0ff; padding: 10px; font-size: 0.8em; background: rgba(0,255,255,0.05); }
-        .map-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px; }
+        #xp-bar { width: 150px; height: 10px; border: 1px solid #0ff; background: rgba(0,255,255,0.1); }
+        #xp-fill { width: 0%; height: 100%; background: #f0f; }
         .sig { position: absolute; bottom: 5px; right: 5px; color: rgba(0,255,255,0.3); font-size: 10px; }
     </style>
 </head>
 <body>
 
-<div id="orientation-lock">
-    <div style="font-size: 60px;">🔄</div>
-    <h2>ПЕРЕВЕРНИ ЭКРАН</h2>
-    <p>Для битвы нужен горизонтальный режим</p>
-</div>
+<div id="orientation-lock"><h2>🔄 ПЕРЕВЕРНИ ЭКРАН</h2></div>
 
 <div id="ui-layer" class="hidden">
-    <div>HP: <span id="h-v">100</span> | LVL: <span id="l-v">1</span></div>
+    <div>HP: <span id="h-v">100</span> | LVL: <span id="l-v">1</span> | 💎: <span id="m-v">0</span></div>
     <div id="xp-bar"><div id="xp-fill"></div></div>
-    <div style="color: #f0f;">💎: <span id="m-v">0</span></div>
 </div>
-
-<button id="live-shop-btn" class="hidden">🛒 МАГАЗИН</button>
 
 <div id="m-screen" class="screen">
-    <h1 style="text-shadow: 0 0 20px #0ff; font-size: 3em;">CRYSTAL BATTLE</h1>
-    
+    <h1>CRYSTAL BATTLE</h1>
+    <p>ВЫБЕРИ КАРТУ:</p>
+    <div id="map-select" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 20px;"></div>
     <p>СЛОЖНОСТЬ:</p>
-    <div>
-        <button class="d-btn active" data-d="1">ЛЕГКО</button>
-        <button class="d-btn" data-d="2">НОРМА</button>
-        <button class="d-btn" data-d="3">ХАРД</button>
+    <div id="diff-select">
+        <button class="d-btn active" data-d="1">ЛЕГКО (3)</button>
+        <button class="d-btn" data-d="2">НОРМА (5)</button>
+        <button class="d-btn" data-d="3">ХАРД (10)</button>
     </div>
-
-    <p>ЛОКАЦИЯ:</p>
-    <div class="map-grid" id="map-list"></div>
-    
-    <button id="start-btn" style="font-size: 1.5em; border-color: #f0f; margin-top:20px; padding: 15px 50px;">В БОЙ</button>
-    <p style="font-size: 0.8em; margin-top: 10px;">РЕКОРД: <span id="b-s">0</span></p>
-</div>
-
-<div id="shop-overlay" class="screen">
-    <h2>ОРУЖЕЙНАЯ</h2>
-    <p>КРИСТАЛЛЫ: <span id="s-m">0</span> 💎</p>
-    <div class="grid" id="s-items"></div>
-    <button id="s-close" style="margin-top: 15px; border-color: #f0f;">НАЗАД К БОЮ</button>
+    <button id="start-btn" style="font-size: 1.5em; border-color: #f0f; margin-top:20px;">В БОЙ</button>
 </div>
 
 <div id="go-screen" class="screen hidden">
-    <h1 style="color:red; font-size: 4em;">ТЫ ПОГИБ</h1>
+    <h1 style="color:red;">ТЫ ПОГИБ</h1>
     <button onclick="location.reload()">В МЕНЮ</button>
 </div>
 
@@ -89,173 +53,160 @@
     const canvas = document.getElementById('gC'), ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-    let stats = JSON.parse(localStorage.getItem('cb_v2')) || { money: 0, best: 0, unlocked: [0] };
-    let audioCtx = null;
-
-    const weapons = [
-        { n: "Пистолет", p: 0, d: 10, s: 450, c: "#0ff", len: 25, w: 4, tone: 400 },
-        { n: "Узи", p: 300, d: 12, s: 120, c: "#0f0", len: 22, w: 7, tone: 350 },
-        { n: "Дробовик", p: 700, d: 45, s: 1000, c: "#ff0", len: 30, w: 12, tone: 200 },
-        { n: "Автомат", p: 1500, d: 40, s: 300, c: "#f0f", len: 45, w: 6, tone: 300 },
-        { n: "Винтовка", p: 3500, d: 350, s: 1500, c: "#00f", len: 60, w: 5, tone: 150 },
-        { n: "Миниган", p: 6000, d: 25, s: 70, c: "#f90", len: 50, w: 15, tone: 250 },
-        { n: "Лазер", p: 12000, d: 180, s: 200, c: "#f00", len: 55, w: 8, tone: 600 },
-        { n: "BFG-9000", p: 40000, d: 1500, s: 2500, c: "#0f0", len: 40, w: 25, tone: 100 }
-    ];
-
-    const maps = [
-        { n: "ПУСТЫНЯ", c: "#111" }, { n: "ЛЁД", c: "#022" }, { n: "АД", c: "#200" }, 
-        { n: "ЛЕС", c: "#020" }, { n: "КИБЕР", c: "#101" }
-    ];
-
-    let gameActive = false, score = 0, xp = 0, lvl = 1, curW = 0, curM = 0, diff = 1;
-    let player = { x: 1250, y: 1250, hp: 100, max: 100, r: 20, lastS: 0, hit: 0 };
-    let enemies = [], pB = [], eB = [], worldSize = 2500;
+    let stats = { money: 0 };
+    let audioCtx = null, gameActive = false, xp = 0, lvl = 1, diff = 1, curMap = 0;
+    let player = { x: 1250, y: 1250, hp: 100, max: 100, r: 15, lastS: 0, hit: 0 };
+    let enemies = [], pB = [], eB = [], obstacles = [], worldSize = 2500;
     let joyL = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1 };
     let joyR = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1, a: 0 };
 
-    // Генератор звуков
-    function playSnd(freq, dur, vol, type="triangle") {
-        if(!audioCtx) return;
-        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + dur);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + dur);
+    const mapConfigs = [
+        { n: "DUST", bg: "#c4a484", wall: "#8b7355", obj: "#d2b48c" },
+        { n: "OFFICE", bg: "#2c3e50", wall: "#34495e", obj: "#2980b9" },
+        { n: "AZTEC", bg: "#1e3d14", wall: "#0f2005", obj: "#2ecc71" },
+        { n: "INFERNO", bg: "#4d3a2b", wall: "#2d1f14", obj: "#a0522d" },
+        { n: "NUKE", bg: "#7f8c8d", wall: "#2c3e50", obj: "#95a5a6" }
+    ];
+
+    function drawWeapon(x, y, angle, color, length = 25, thickness = 8) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = color;
+        ctx.fillRect(5, -thickness/2, length, thickness); // Ствол
+        ctx.fillStyle = "#111";
+        ctx.fillRect(-5, -thickness/2, 10, thickness); // Рукоятка
+        ctx.restore();
     }
 
-    // Меню и магазин
-    const mapList = document.getElementById('map-list');
-    maps.forEach((m, i) => {
-        const btn = document.createElement('button');
-        btn.innerText = m.n; btn.className = 'map-btn' + (i===0?' active':'');
-        btn.onclick = () => { document.querySelectorAll('.map-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); curM = i; };
-        mapList.appendChild(btn);
+    function generateObstacles() {
+        obstacles = [];
+        const config = mapConfigs[curMap];
+        for(let i=0; i<50; i++) {
+            let obj = {
+                x: Math.random() * (worldSize - 300) + 150,
+                y: Math.random() * (worldSize - 300) + 150,
+                w: 60 + Math.random() * 100,
+                h: 60 + Math.random() * 100,
+                c: config.obj
+            };
+            if(Math.hypot(obj.x - 1250, obj.y - 1250) > 300) obstacles.push(obj);
+        }
+    }
+
+    function checkCollision(x, y, r) {
+        for(let o of obstacles) if(x + r > o.x && x - r < o.x + o.w && y + r > o.y && y - r < o.y + o.h) return true;
+        return x < r || x > worldSize-r || y < r || y > worldSize-r;
+    }
+
+    const mapBox = document.getElementById('map-select');
+    mapConfigs.forEach((m, i) => {
+        const b = document.createElement('button');
+        b.innerText = m.n;
+        b.onclick = () => { document.querySelectorAll('#map-select button').forEach(btn=>btn.classList.remove('active')); b.classList.add('active'); curMap = i; };
+        if(i === 0) b.classList.add('active');
+        mapBox.appendChild(b);
     });
 
     document.querySelectorAll('.d-btn').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active'));
-            btn.classList.add('active'); diff = parseInt(btn.dataset.d);
-        };
+        btn.onclick = () => { document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); diff = parseInt(btn.dataset.d); };
     });
-
-    function buildShop() {
-        const grid = document.getElementById('s-items'); grid.innerHTML = '';
-        weapons.forEach((w, i) => {
-            const own = stats.unlocked.includes(i);
-            grid.innerHTML += `<div class="item"><span style="color:${w.c}">${w.n}</span><br>
-            <button onclick="buy(${i})" ${own && curW===i?'class="active"':''}>${own?(curW===i?'В РУКАХ':'ВЗЯТЬ'):w.p+'💎'}</button></div>`;
-        });
-        document.getElementById('s-m').innerText = stats.money;
-    }
-
-    window.buy = (i) => {
-        if(stats.unlocked.includes(i)) { curW = i; }
-        else if(stats.money >= weapons[i].p) { stats.money -= weapons[i].p; stats.unlocked.push(i); curW = i; }
-        localStorage.setItem('cb_v2', JSON.stringify(stats)); buildShop();
-    };
 
     function loop() {
         if(!gameActive) return;
         
-        // Движение
         if(joyL.active) {
-            let d = Math.hypot(joyL.x, joyL.y);
-            if(d > 5) { player.x += (joyL.x/d)*6; player.y += (joyL.y/d)*6; }
+            let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*6, vy = (joyL.y/d)*6;
+            if(!checkCollision(player.x + vx, player.y, player.r)) player.x += vx;
+            if(!checkCollision(player.x, player.y + vy, player.r)) player.y += vy;
         }
-        player.x = Math.max(20, Math.min(worldSize-20, player.x));
-        player.y = Math.max(20, Math.min(worldSize-20, player.y));
 
-        // Стрельба игрока
-        if(joyR.active && Date.now() - player.lastS > weapons[curW].s) {
-            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*14, vy: Math.sin(joyR.a)*14, d: weapons[curW].d, c: weapons[curW].c});
+        if(joyR.active && Date.now() - player.lastS > 350) {
+            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*15, vy: Math.sin(joyR.a)*15});
             player.lastS = Date.now();
-            playSnd(weapons[curW].tone, 0.15, 0.2); // ЗВУК ВЫСТРЕЛА
         }
         
-        // Враги
-        if(Math.random() < 0.02 * diff) {
-            let a = Math.random()*Math.PI*2;
-            enemies.push({x: player.x+Math.cos(a)*600, y: player.y+Math.sin(a)*600, hp: 25+(lvl*12), lastS: 0});
+        let maxBots = [0, 3, 5, 10][diff];
+        if(enemies.length < maxBots && Math.random() < 0.02) {
+            let rx = Math.random()*worldSize, ry = Math.random()*worldSize;
+            if(!checkCollision(rx, ry, 20)) enemies.push({x: rx, y: ry, hp: 60, lastS: 0, a: 0});
         }
 
         enemies.forEach((en, i) => {
             let dist = Math.hypot(player.x-en.x, player.y-en.y);
-            en.x += (player.x-en.x)/dist * (2 + diff*0.5); en.y += (player.y-en.y)/dist * (2 + diff*0.5);
-
-            // Боты стреляют
-            if(dist < 500 && Date.now() - en.lastS > 2000 / diff) {
-                eB.push({x: en.x, y: en.y, vx: ((player.x-en.x)/dist)*7, vy: ((player.y-en.y)/dist)*7});
+            en.a = Math.atan2(player.y - en.y, player.x - en.x);
+            let vx = (player.x-en.x)/dist * (2+diff), vy = (player.y-en.y)/dist * (2+diff);
+            if(!checkCollision(en.x + vx, en.y + vy, 15)) { en.x += vx; en.y += vy; }
+            if(dist < 400 && Date.now() - en.lastS > 2000/diff) {
+                eB.push({x: en.x, y: en.y, vx: Math.cos(en.a)*8, vy: Math.sin(en.a)*8});
                 en.lastS = Date.now();
             }
+        });
 
-            pB.forEach((b, bi) => {
+        [pB, eB].forEach(bullets => {
+            for(let i = bullets.length-1; i>=0; i--) {
+                let b = bullets[i]; b.x += b.vx; b.y += b.vy;
+                if(checkCollision(b.x, b.y, 2)) bullets.splice(i, 1);
+            }
+        });
+
+        pB.forEach((b, bi) => {
+            enemies.forEach((en, ei) => {
                 if(Math.hypot(b.x-en.x, b.y-en.y) < 25) {
-                    en.hp -= b.d; pB.splice(bi, 1);
-                    if(en.hp <= 0) { 
-                        enemies.splice(i, 1); score += 10; xp += 20; stats.money += 5 + diff;
-                        playSnd(100, 0.05, 0.1, "sine"); // ЗВУК ПОПАДАНИЯ
-                    }
+                    en.hp -= 20; pB.splice(bi, 1);
+                    if(en.hp <= 0) { enemies.splice(ei, 1); stats.money += 10; xp += 20; }
                 }
             });
         });
 
-        // Пули ботов
         eB.forEach((eb, i) => {
-            eb.x += eb.vx; eb.y += eb.vy;
             if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) {
-                player.hp -= 10 * diff; player.hit = 10; eB.splice(i, 1);
-                playSnd(50, 0.2, 0.3, "sawtooth"); // ЗВУК УРОНА
+                player.hp -= 10*diff; player.hit=10; eB.splice(i, 1);
             }
-            if(Math.abs(eb.x-player.x)>1200) eB.splice(i,1);
         });
 
-        pB.forEach((b, i) => { b.x += b.vx; b.y += b.vy; if(Math.abs(b.x-player.x)>1200) pB.splice(i,1); });
-
-        if(xp >= 100) { lvl++; xp = 0; player.max += 20; player.hp = player.max; playSnd(800, 0.3, 0.2, "sine"); }
-        if(player.hp <= 0) { gameActive = false; stats.best = Math.max(stats.best, score); localStorage.setItem('cb_v2', JSON.stringify(stats)); document.getElementById('go-screen').classList.remove('hidden'); }
+        if(player.hp <= 0) { gameActive = false; document.getElementById('go-screen').classList.remove('hidden'); }
         
-        updateUI(); draw(); requestAnimationFrame(loop);
-    }
-
-    function updateUI() {
-        document.getElementById('h-v').innerText = Math.max(0, Math.ceil(player.hp));
-        document.getElementById('l-v').innerText = lvl;
-        document.getElementById('m-v').innerText = stats.money;
-        document.getElementById('xp-fill').style.width = xp + "%";
+        draw(); requestAnimationFrame(loop);
     }
 
     function draw() {
-        ctx.fillStyle = maps[curM].c; ctx.fillRect(0,0,canvas.width, canvas.height);
+        const config = mapConfigs[curMap];
+        ctx.fillStyle = config.bg; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.save(); ctx.translate(-player.x + canvas.width/2, -player.y + canvas.height/2);
         
-        ctx.strokeStyle = "rgba(255,255,255,0.05)";
-        for(let i=0; i<=worldSize; i+=100) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,worldSize); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(worldSize,i); ctx.stroke(); }
-        
-        // Игрок и пушка
-        ctx.fillStyle = player.hit > 0 ? "white" : "#0ff";
-        if(player.hit > 0) player.hit--;
+        ctx.strokeStyle = config.wall; ctx.lineWidth = 15; ctx.strokeRect(0, 0, worldSize, worldSize);
+        obstacles.forEach(o => { ctx.fillStyle = o.c; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.strokeRect(o.x, o.y, o.w, o.h); });
+
+        // Игрок
+        ctx.fillStyle = player.hit > 0 ? "white" : "#0ff"; if(player.hit > 0) player.hit--;
         ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
-        
-        const w = weapons[curW];
-        ctx.strokeStyle = w.c; ctx.lineWidth = w.w;
-        ctx.beginPath(); ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.x + Math.cos(joyR.a)*w.len, player.y + Math.sin(joyR.a)*w.len); ctx.stroke();
+        drawWeapon(player.x, player.y, joyR.a, "#555");
 
-        ctx.fillStyle = "#f0f"; enemies.forEach(en => { ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI*2); ctx.fill(); });
-        pB.forEach(b => { ctx.fillStyle = b.c; ctx.fillRect(b.x-3, b.y-4, 6, 8); });
-        ctx.fillStyle = "#ff4444"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill(); });
+        // Враги
+        enemies.forEach(en => {
+            ctx.fillStyle = "#f0f"; ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI*2); ctx.fill();
+            drawWeapon(en.x, en.y, en.a, "#333", 20, 6); // Пушка врага
+        });
 
+        ctx.fillStyle = "#ff0"; pB.forEach(b => ctx.fillRect(b.x-2, b.y-2, 4, 4));
+        ctx.fillStyle = "#f00"; eB.forEach(b => ctx.fillRect(b.x-2, b.y-2, 4, 4));
         ctx.restore();
+        
+        // Мини-радар
+        let rS = 100, rP = 20, s = rS / worldSize;
+        ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(rP, canvas.height-rS-rP, rS, rS);
+        ctx.fillStyle = "#0ff"; ctx.fillRect(rP + player.x*s, canvas.height-rS-rP + player.y*s, 3, 3);
+        ctx.fillStyle = "#f0f"; enemies.forEach(en => ctx.fillRect(rP + en.x*s, canvas.height-rS-rP + en.y*s, 2, 2));
+
         if(joyL.active) drawJ(joyL.sx, joyL.sy, joyL.x, joyL.y);
         if(joyR.active) drawJ(joyR.sx, joyR.sy, joyR.x, joyR.y);
+        
+        document.getElementById('h-v').innerText = Math.max(0, Math.ceil(player.hp));
+        document.getElementById('m-v').innerText = stats.money;
     }
 
-    function drawJ(sx, sy, x, y) { ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx, sy, 55, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx+x, sy+y, 25, 0, Math.PI*2); ctx.stroke(); }
+    function drawJ(sx, sy, x, y) { ctx.strokeStyle="rgba(0,255,255,0.3)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(sx, sy, 50, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx+x, sy+y, 20, 0, Math.PI*2); ctx.stroke(); }
 
     window.addEventListener('touchstart', e => {
         for(let t of e.changedTouches) {
@@ -264,18 +215,14 @@
         }
     });
     window.addEventListener('touchmove', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { let dx=t.clientX-joyL.sx, dy=t.clientY-joyL.sy, d=Math.min(50, Math.hypot(dx,dy)); joyL.x=(dx/Math.hypot(dx,dy))*d; joyL.y=(dy/Math.hypot(dx,dy))*d; } if(t.identifier===joyR.id) { let dx=t.clientX-joyR.sx, dy=t.clientY-joyR.sy, d=Math.min(50, Math.hypot(dx,dy)); joyR.x=(dx/Math.hypot(dx,dy))*d; joyR.y=(dy/Math.hypot(dx,dy))*d; joyR.a=Math.atan2(dy, dx); } } });
-    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; joyL.x=0; joyL.y=0; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; joyR.x=0; joyR.y=0; } } });
+    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; } } });
 
     document.getElementById('start-btn').onclick = () => { 
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        generateObstacles();
         document.getElementById('m-screen').classList.add('hidden'); 
         document.getElementById('ui-layer').classList.remove('hidden');
-        document.getElementById('live-shop-btn').classList.remove('hidden');
         gameActive = true; loop(); 
     };
-    document.getElementById('live-shop-btn').onclick = () => { document.getElementById('shop-overlay').style.display = 'flex'; buildShop(); };
-    document.getElementById('s-close').onclick = () => { document.getElementById('shop-overlay').style.display = 'none'; };
-    document.getElementById('b-s').innerText = stats.best;
 </script>
 </body>
 </html>
