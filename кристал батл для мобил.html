@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crystal Battle: Gold Edition</title>
+    <style>
+        body { margin:0; overflow:hidden; background:#000; color:white; font-family: sans-serif; user-select: none; touch-action: none; }
+        canvas { display:block; }
+        
+        #hud { position:fixed; top:10px; left:10px; display:flex; gap:10px; z-index:50; pointer-events:none; }
+        .stat { background:rgba(0,0,0,0.8); padding:5px 12px; border:1px solid #00d4ff; border-radius:10px; font-size:14px; font-weight:bold; }
+        
+        #radar-container { position: fixed; top: 10px; right: 10px; width: 100px; height: 100px; background: rgba(0,20,40,0.7); border: 2px solid #00d4ff; border-radius: 50%; overflow: hidden; z-index: 50; }
+        #radar-canvas { width: 100%; height: 100%; }
+
+        #orientation-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; 
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center;
+        }
+
+        .menu-screen { 
+            position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); 
+            display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:200; 
+        }
+        .menu-box { background:#111; padding:20px; border:2px solid #00d4ff; border-radius:15px; width:85%; max-width:500px; text-align:center; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+        .btn { background:#222; color:#00d4ff; border:1px solid #00d4ff; padding:10px; border-radius:8px; font-size:12px; }
+        .btn.active { background:#00d4ff; color:black; font-weight:bold; }
+
+        .joystick { position:absolute; width:80px; height:80px; background:rgba(255,255,255,0.05); border:1px solid rgba(0,212,255,0.3); border-radius:50%; visibility:hidden; z-index:150; }
+        .stick { position:absolute; width:36px; height:36px; background:#00d4ff; border-radius:50%; left:22px; top:22px; box-shadow:0 0 10px #00d4ff; }
+        
+        #shop-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100; padding:12px 30px; background:#00d4ff; color:black; border:none; border-radius:25px; font-weight:bold; }
+        
+        /* Подпись автора[cite: 1] */
+        #credits { position: fixed; bottom: 10px; right: 15px; font-size: 12px; color: rgba(0, 212, 255, 0.6); z-index: 50; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="orientation-overlay">
+    <h2 style="color:#00d4ff">ПОЖАЛУЙСТА, ПЕРЕВЕРНИТЕ ТЕЛЕФОН</h2>
+</div>
+
+<div id="hud">
+    <div class="stat">HP: <span id="hp">100</span></div>
+    <div class="stat">$: <span id="money">800</span></div>
+</div>
+
+<div id="radar-container"><canvas id="radar-canvas"></canvas></div>
+<div id="credits">by Кирилл Пьяничук</div>
+
+<button id="shop-btn" onclick="toggleShop()">МАГАЗИН</button>
+
+<div id="ui-layer">
+    <div id="main-menu" class="menu-screen">
+        <div class="menu-box">
+            <h1 style="color:#00d4ff; margin:0">CRYSTAL BATTLE</h1>
+            <div class="grid">
+                <button class="btn active" onclick="setMap(0, this)">АНГАР</button>
+                <button class="btn" onclick="setMap(1, this)">ЛАБИРИНТ</button>
+                <button class="btn" onclick="setMap(2, this)">ОСТРОВА</button>
+            </div>
+            <div class="grid">
+                <button class="btn" onclick="setDiff(1, this)">ЛЕГКО</button>
+                <button class="btn active" onclick="setDiff(2, this)">НОРМА</button>
+                <button class="btn" onclick="setDiff(4, this)">ХАРДКОР</button>
+            </div>
+            <button class="btn" style="width:100%; font-size:20px; background:#00d4ff; color:black;" onclick="startGame()">ИГРАТЬ</button>
+        </div>
+    </div>
+
+    <div id="shop-menu" class="menu-screen" style="display:none">
+        <div class="menu-box">
+            <h2>ОРУЖЕЙНАЯ</h2>
+            <div class="grid">
+                <button class="btn" onclick="buy('ak47', 2500)">AK-47 ($2500)</button>
+                <button class="btn" onclick="buy('m4a1', 3100)">M4A1 ($3100)</button>
+                <button class="btn" onclick="buy('hp', 500)">HP ($500)</button>
+            </div>
+            <button class="btn" style="width:100%; border-color:red; color:red" onclick="toggleShop()">ЗАКРЫТЬ</button>
+        </div>
+    </div>
+</div>
+
+<div id="joy-l" class="joystick"><div class="stick"></div></div>
+<div id="joy-r" class="joystick"><div class="stick"></div></div>
+<canvas id="game"></canvas>
+
+<script>
+// --- ЗВУКОВОЙ ДВИЖОК (Web Audio API)[cite: 1] ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, type, duration, vol) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+const sfx = {
+    shoot: () => playSound(400, 'square', 0.1, 0.1),
+    shootHeavy: () => playSound(150, 'sawtooth', 0.15, 0.15),
+    hit: () => playSound(100, 'triangle', 0.2, 0.2),
+    buy: () => playSound(800, 'sine', 0.3, 0.2),
+    fail: () => playSound(50, 'sine', 0.5, 0.2)
+};
+
+// --- ОСНОВНАЯ ЛОГИКА ---
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const rCanvas = document.getElementById('radar-canvas'), rCtx = rCanvas.getContext('2d');
+let world = { w: 3000, h: 2000 };
+let player = { x: 400, y: 400, hp: 100, money: 800, angle: 0, weapon: 'pistol', radius: 22, lastShot: 0 };
+let enemies = [], bullets = [], walls = [], gameRunning = false, currentMap = 0, difficulty = 2;
+
+const jL = { active: false, id: -1, startX: 0, startY: 0, vx: 0, vy: 0 };
+const jR = { active: false, id: -1, startX: 0, startY: 0, vx: 0, vy: 0 };
+
+function checkOrientation() {
+    document.getElementById('orientation-overlay').style.display = window.innerHeight > window.innerWidth ? 'flex' : 'none';
+}
+window.addEventListener('resize', checkOrientation);
+checkOrientation();
+
+function setMap(id, btn) { currentMap = id; selectBtn(btn); }
+function setDiff(val, btn) { difficulty = val; selectBtn(btn); }
+function selectBtn(btn) {
+    [...btn.parentElement.children].forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function toggleShop() {
+    const s = document.getElementById('shop-menu');
+    s.style.display = s.style.display === 'none' ? 'flex' : 'none';
+}
+
+function buy(item, price) {
+    if (player.money >= price) {
+        player.money -= price;
+        if (item === 'hp') player.hp = 100; else player.weapon = item;
+        sfx.buy();
+        updateHUD(); toggleShop();
+    } else {
+        sfx.fail();
+    }
+}
+
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    document.getElementById('main-menu').style.display = 'none';
+    initWalls();
+    spawnEnemies();
+    gameRunning = true;
+    requestAnimationFrame(loop);
+}
+
+function initWalls() {
+    walls = [
+        {x:0, y:0, w:world.w, h:40}, {x:0, y:world.h-40, w:world.w, h:40},
+        {x:0, y:0, w:40, h:world.h}, {x:world.w-40, y:0, w:40, h:world.h}
+    ];
+    if (currentMap === 1) for(let i=0; i<5; i++) walls.push({x: 550*i, y: (i%2)*800, w: 100, h: 1200});
+    else if (currentMap === 2) walls.push({x: 800, y: 800, w: 400, h: 400}, {x: 1800, y: 400, w: 300, h: 300});
+    else walls.push({x: 600, y: 600, w: 1800, h: 80}, {x: 1000, y: 1200, w: 100, h: 600});
+}
+
+function spawnEnemies() {
+    for(let i=0; i < 5 + difficulty*2; i++) {
+        enemies.push({ x: 1200 + Math.random()*1500, y: 200 + Math.random()*1600, hp: 80 + difficulty*10, alive: true, angle: 0, radius: 22 });
+    }
+}
+
+// УПРАВЛЕНИЕ[cite: 1]
+window.addEventListener('touchstart', e => {
+    for (let t of e.changedTouches) {
+        if (t.clientX < window.innerWidth/2 && !jL.active) {
+            jL.active = true; jL.id = t.identifier; jL.startX = t.clientX; jL.startY = t.clientY;
+            showJoy('joy-l', t.clientX, t.clientY);
+        } else if (t.clientX >= window.innerWidth/2 && !jR.active) {
+            jR.active = true; jR.id = t.identifier; jR.startX = t.clientX; jR.startY = t.clientY;
+            showJoy('joy-r', t.clientX, t.clientY);
+        }
+    }
+}, {passive: false});
+
+window.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (let t of e.changedTouches) {
+        if (t.identifier === jL.id) updateJoy(t, jL, 'joy-l');
+        if (t.identifier === jR.id) updateJoy(t, jR, 'joy-r');
+    }
+}, {passive: false});
+
+window.addEventListener('touchend', e => {
+    for (let t of e.changedTouches) {
+        if (t.identifier === jL.id) { jL.active = false; jL.vx = jL.vy = 0; hideJoy('joy-l'); }
+        if (t.identifier === jR.id) { jR.active = false; jR.vx = jR.vy = 0; hideJoy('joy-r'); }
+    }
+});
+
+function showJoy(id, x, y) { let el = document.getElementById(id); el.style.visibility = 'visible'; el.style.left = (x-40)+'px'; el.style.top = (y-40)+'px'; }
+function hideJoy(id) { document.getElementById(id).style.visibility = 'hidden'; }
+function updateJoy(t, data, id) {
+    let dx = t.clientX - data.startX, dy = t.clientY - data.startY, dist = Math.min(Math.hypot(dx, dy), 40), angle = Math.atan2(dy, dx);
+    data.vx = Math.cos(angle) * (dist/40); data.vy = Math.sin(angle) * (dist/40);
+    document.querySelector(`#${id} .stick`).style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
+}
+
+function resolveWall(obj) {
+    walls.forEach(w => {
+        let cx = Math.max(w.x, Math.min(obj.x, w.x + w.w)), cy = Math.max(w.y, Math.min(obj.y, w.y + w.h)), d = Math.hypot(obj.x - cx, obj.y - cy);
+        if (d < obj.radius) { let o = obj.radius - d; obj.x += ((obj.x - cx)/d || 0) * o; obj.y += ((obj.y - cy)/d || 0) * o; }
+    });
+}
+
+function update() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    player.x += jL.vx * 7; player.y += jL.vy * 7; resolveWall(player);
+
+    if (jR.active) {
+        player.angle = Math.atan2(jR.vy, jR.vx);
+        let rate = player.weapon === 'pistol' ? 450 : 130;
+        if (Date.now() - player.lastShot > rate) {
+            bullets.push({x: player.x, y: player.y, vx: Math.cos(player.angle)*20, vy: Math.sin(player.angle)*20, team: 'T'});
+            player.lastShot = Date.now();
+            player.weapon === 'pistol' ? sfx.shoot() : sfx.shootHeavy();
+        }
+    }
+
+    enemies.forEach(e => {
+        if (!e.alive) return;
+        let dist = Math.hypot(player.x - e.x, player.y - e.y);
+        if (dist < 700) {
+            e.angle = Math.atan2(player.y - e.y, player.x - e.x);
+            e.x += Math.cos(e.angle) * (1.5 + difficulty/2); e.y += Math.sin(e.angle) * (1.5 + difficulty/2);
+            if (dist < 400 && Math.random() < 0.01 * difficulty) {
+                bullets.push({x: e.x, y: e.y, vx: Math.cos(e.angle)*15, vy: Math.sin(e.angle)*15, team: 'CT'});
+                sfx.shoot();
+            }
+        }
+        resolveWall(e);
+    });
+
+    bullets.forEach((b, i) => {
+        b.x += b.vx; b.y += b.vy;
+        [player, ...enemies].forEach(t => {
+            if (t.alive && t.team !== b.team && Math.hypot(b.x-t.x, b.y-t.y) < 25) {
+                t.hp -= 20; bullets.splice(i, 1); sfx.hit();
+                if (t.hp <= 0) { t.alive = false; if(t !== player) player.money += 200; }
+            }
+        });
+        walls.forEach(w => { if(b.x > w.x && b.x < w.x+w.w && b.y > w.y && b.y < w.y+w.h) bullets.splice(i,1); });
+    });
+
+    if (enemies.filter(e => e.alive).length < 2) spawnEnemies();
+    updateHUD();
+    drawRadar();
+    if (player.hp <= 0) location.reload();
+}
+
+function drawRadar() {
+    rCanvas.width = 100; rCanvas.height = 100; rCtx.translate(50, 50);
+    walls.forEach(w => { rCtx.fillStyle = "rgba(0,212,255,0.2)"; rCtx.fillRect((w.x - player.x)*0.04, (w.y - player.y)*0.04, w.w*0.04, w.h*0.04); });
+    enemies.forEach(e => { if(e.alive) { rCtx.fillStyle = "red"; rCtx.beginPath(); rCtx.arc((e.x - player.x)*0.04, (e.y - player.y)*0.04, 2, 0, 7); rCtx.fill(); }});
+}
+
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.save(); ctx.translate(canvas.width/2 - player.x, canvas.height/2 - player.y);
+    ctx.fillStyle = '#151515'; walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
+    enemies.forEach(e => {
+        if (!e.alive) return;
+        ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.angle);
+        ctx.fillStyle = '#ff4444'; ctx.beginPath(); ctx.arc(0,0,22,0,7); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.fillRect(12,-2,15,4); ctx.restore();
+    });
+    ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
+    ctx.fillStyle = '#00d4ff'; ctx.beginPath(); ctx.arc(0,0,22,0,7); ctx.fill();
+    ctx.fillStyle = 'white'; ctx.fillRect(12,-3,20,6); ctx.restore();
+    ctx.fillStyle = 'yellow'; bullets.forEach(b => ctx.fillRect(b.x, b.y, 4, 4));
+    ctx.restore();
+}
+
+function updateHUD() { document.getElementById('hp').innerText = Math.max(0, Math.ceil(player.hp)); document.getElementById('money').innerText = player.money; }
+function loop() { if(gameRunning) { update(); draw(); requestAnimationFrame(loop); } }
+</script>
+</body>
+</html>
