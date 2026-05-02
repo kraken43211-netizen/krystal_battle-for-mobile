@@ -3,290 +3,435 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crystal Battle Mobile</title>
+    <title>Crystal Battle Mobile - Ultimate</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #050505;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            user-select: none;
-            touch-action: none;
-        }
-        canvas {
-            display: block;
-        }
-        #ui-layer {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: #0ff;
-            text-shadow: 0 0 5px #0ff;
-            pointer-events: none;
-        }
-        .signature {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            color: rgba(0, 255, 255, 0.5);
-            font-size: 12px;
-        }
-        #game-over {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #f0f;
-            padding: 20px;
-            text-align: center;
-            color: #f0f;
-            display: none;
-            z-index: 100;
-        }
-        button {
-            background: #0ff;
-            border: none;
-            padding: 10px 20px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-        }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; user-select: none; touch-action: none; color: #0ff; }
+        canvas { display: block; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); z-index: 10; transition: opacity 0.5s; text-align: center;}
+        .hidden { display: none !important; opacity: 0; }
+        h1 { font-size: 3em; text-shadow: 0 0 15px #0ff; margin-bottom: 10px; color: #0ff; }
+        h2 { color: #f0f; text-shadow: 0 0 10px #f0f; }
+        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 10px 30px; font-size: 1.2em; margin: 10px; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 10px rgba(0,255,255,0.3); transition: all 0.3s; }
+        button:hover, button.active { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
+        .opt-group { margin-bottom: 20px; border: 1px solid rgba(0,255,255,0.2); padding: 10px; border-radius: 5px; }
+        #ui-layer { position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 5; text-shadow: 0 0 5px #0ff; font-weight: bold;}
+        #weapon-info { position: absolute; bottom: 10px; left: 10px; pointer-events: none; z-index: 5; color: #f0f; text-shadow: 0 0 5px #f0f;}
+        .signature { position: absolute; bottom: 5px; right: 5px; color: rgba(0,255,255,0.4); font-size: 10px; z-index: 5; }
+        /* Стили для радара */
+        #radar { position: absolute; top: 10px; right: 10px; width: 120px; height: 120px; border: 2px solid rgba(0, 255, 255, 0.5); border-radius: 50%; background: rgba(0, 20, 20, 0.7); overflow: hidden; z-index: 5; box-shadow: 0 0 10px rgba(0,255,255,0.3); }
+        #radar-canvas { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
-<div id="ui-layer">
+<!-- Аудио -->
+<audio id="snd-shot" src="shot.mp3" preload="auto"></audio>
+<audio id="snd-expl" src="explosion.mp3" preload="auto"></audio>
+<audio id="snd-go" src="gameover.mp3" preload="auto"></audio>
+
+<!-- UI Layer -->
+<div id="ui-layer" class="hidden">
     <div>HP: <span id="hp-val">100</span></div>
     <div>SCORE: <span id="score-val">0</span></div>
 </div>
+<div id="weapon-info" class="hidden">Орудие: <span id="w-name">-</span></div>
+<div class="signature">by Кирилл Пьяничук</div>
 
-<div id="game-over">
-    <h1>GAME OVER</h1>
-    <p>Вас уничтожили боты!</p>
-    <button onclick="resetGame()">РЕСТАРТ</button>
+<!-- РАДАР -->
+<div id="radar" class="hidden">
+    <canvas id="radar-canvas" width="120" height="120"></canvas>
 </div>
 
-<div class="signature">by Кирилл Пьяничук</div>
+<!-- Главное Меню -->
+<div id="menu-screen" class="screen">
+    <h1>CRYSTAL BATTLE</h1>
+    <h2>MOBILE</h2>
+    
+    <div class="opt-group">
+        <div>СЛОЖНОСТЬ:</div>
+        <button class="diff-btn active" data-diff="1">Легко</button>
+        <button class="diff-btn" data-diff="2">Норма</button>
+        <button class="diff-btn" data-diff="3">Хард</button>
+    </div>
+
+    <div class="opt-group">
+        <div>КАРТА:</div>
+        <button class="map-btn active" data-map="empty">Пустошь</button>
+        <button class="map-btn" data-map="lab">Лабиринт</button>
+        <button class="map-btn" data-map="arena">Арена</button>
+    </div>
+
+    <button id="start-btn" style="border-color: #f0f; color: #f0f; margin-top: 30px; font-size: 1.5em;">ИГРАТЬ</button>
+</div>
+
+<!-- Экран Game Over -->
+<div id="go-screen" class="screen hidden">
+    <h1 style="color: #f00; text-shadow: 0 0 15px #f00;">GAME OVER</h1>
+    <p>Твой счет: <span id="final-score">0</span></p>
+    <button id="restart-btn">В МЕНЮ</button>
+</div>
 
 <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const hpDisplay = document.getElementById('hp-val');
-    const scoreDisplay = document.getElementById('score-val');
-    const gameOverScreen = document.getElementById('game-over');
+    const radarCanvas = document.getElementById('radar-canvas');
+    const radarCtx = radarCanvas.getContext('2d');
+    
+    // UI элементы
+    const ui = {
+        layer: document.getElementById('ui-layer'),
+        menu: document.getElementById('menu-screen'),
+        go: document.getElementById('go-screen'),
+        hp: document.getElementById('hp-val'),
+        score: document.getElementById('score-val'),
+        fScore: document.getElementById('final-score'),
+        wName: document.getElementById('w-name'),
+        wInfo: document.getElementById('weapon-info'),
+        radar: document.getElementById('radar')
+    };
+
+    // Звуки
+    const snds = {
+        shot: document.getElementById('snd-shot'),
+        expl: document.getElementById('snd-expl'),
+        go: document.getElementById('snd-go'),
+        muted: false
+    };
+    function playSnd(snd) { if(!snds.muted) { snd.currentTime = 0; snd.play().catch(()=>{}); } }
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    let player = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        radius: 20,
-        color: '#0ff',
-        hp: 100,
-        speed: 4
-    };
+    // Константы мира
+    const WORLD_SIZE = 2000; // Размер карты (больше экрана)
 
+    // Игровые переменные
+    let gameActive = false;
     let score = 0;
-    let gameActive = true;
+    let difficulty = 1;
+    let currentMap = 'empty';
+    let walls = [];
     let enemies = [];
     let playerBullets = [];
     let enemyBullets = [];
+    let particles = [];
+    let nextEnemyTime = 0;
 
-    // Джойстики
-    let leftJoystick = { active: false, x: 0, y: 0, startX: 0, startY: 0, moveX: 0, moveY: 0 };
-    let rightJoystick = { active: false, x: 0, y: 0, startX: 0, startY: 0, moveX: 0, moveY: 0 };
+    // Камера
+    let camera = { x: 0, y: 0 };
 
+    let player = {
+        x: WORLD_SIZE / 2, y: WORLD_SIZE / 2,
+        radius: 18, color: '#0ff', hp: 100, speed: 5,
+        weapon: 'plasma', lastShot: 0
+    };
+
+    // Модельки оружия (визуализация)
+    const weapons = {
+        plasma: { name: 'Плазмаган', color: '#0ff', fireRate: 200, bSpeed: 8, bSize: 4, bDmg: 20, visual: (c, x, y, a) => drawGun(c,x,y,a, '#0ff', 20, 6) },
+        laser: { name: 'Лазер (Скоростр)', color: '#f0f', fireRate: 80, bSpeed: 12, bSize: 2, bDmg: 8, visual: (c, x, y, a) => drawGun(c,x,y,a, '#f0f', 25, 3) }
+    };
+
+    function drawGun(c, x, y, angle, color, len, width) {
+        c.save();
+        c.translate(x, y);
+        c.rotate(angle);
+        c.fillStyle = color;
+        c.fillRect(0, -width/2, len, width); // Ствол
+        c.fillStyle = '#fff';
+        c.fillRect(len-5, -width/2-2, 5, width+4); // Набалдашник
+        c.restore();
+    }
+
+    // Мобильные джойстики
+    let joysticks = {
+        left: { active: false, startX: 0, startY: 0, moveX: 0, moveY: 0, id: -1 },
+        right: { active: false, startX: 0, startY: 0, moveX: 0, moveY: 0, id: -1, angle: 0 }
+    };
+
+    // Настройка Карт
+    function initMap(mapName) {
+        walls = [];
+        // Границы мира
+        walls.push({x:0, y:0, w: WORLD_SIZE, h: 10}, {x:0, y:WORLD_SIZE-10, w: WORLD_SIZE, h: 10}, {x:0, y:0, w: 10, h: WORLD_SIZE}, {x:WORLD_SIZE-10, y:0, w: 10, h: WORLD_SIZE});
+        
+        if(mapName === 'lab') {
+            for(let i=0; i<15; i++) {
+                walls.push({x: Math.random()*WORLD_SIZE, y: Math.random()*WORLD_SIZE, w: 20+Math.random()*300, h: 20});
+                walls.push({x: Math.random()*WORLD_SIZE, y: Math.random()*WORLD_SIZE, w: 20, h: 20+Math.random()*300});
+            }
+        } else if (mapName === 'arena') {
+            walls.push({x: WORLD_SIZE*0.2, y: WORLD_SIZE*0.2, w: WORLD_SIZE*0.6, h: 30});
+            walls.push({x: WORLD_SIZE*0.2, y: WORLD_SIZE*0.8, w: WORLD_SIZE*0.6, h: 30});
+            walls.push({x: WORLD_SIZE*0.5-100, y: WORLD_SIZE*0.5-100, w: 200, h: 200}); // Центр
+        }
+    }
+
+    // Инициализация Врагов (зависит от сложности)
+    function getDiffSettings() {
+        if(difficulty === 1) return {spawn: 3000, speed: 1.5, hp: 30};
+        if(difficulty === 2) return {spawn: 2000, speed: 2.2, hp: 50};
+        return {spawn: 1000, speed: 3, hp: 80}; // Хард
+    }
+
+    function spawnEnemy() {
+        const settings = getDiffSettings();
+        const radius = 15;
+        let x, y;
+        // Спавн за пределами камеры, но внутри мира
+        do {
+            x = Math.random() * WORLD_SIZE;
+            y = Math.random() * WORLD_SIZE;
+        } while (Math.hypot(x - player.x, y - player.y) < canvas.width || isCollidingWithWalls(x, y, radius));
+        
+        enemies.push({ x, y, radius, color: '#f00', hp: settings.hp, speed: settings.speed, lastShot: 0 });
+    }
+
+    // Управление тачами
     window.addEventListener('touchstart', e => {
-        for (let touch of e.changedTouches) {
-            if (touch.clientX < canvas.width / 2) {
-                leftJoystick.active = true;
-                leftJoystick.startX = touch.clientX;
-                leftJoystick.startY = touch.clientY;
-                leftJoystick.identifier = touch.identifier;
-            } else {
-                rightJoystick.active = true;
-                rightJoystick.startX = touch.clientX;
-                rightJoystick.startY = touch.clientY;
-                rightJoystick.identifier = touch.identifier;
+        if(!gameActive) return;
+        for (let t of e.changedTouches) {
+            if (t.clientX < canvas.width / 2 && !joysticks.left.active) {
+                joysticks.left.active = true; joysticks.left.startX = t.clientX; joysticks.left.startY = t.clientY; joysticks.left.id = t.identifier;
+            } else if (t.clientX >= canvas.width / 2 && !joysticks.right.active) {
+                joysticks.right.active = true; joysticks.right.startX = t.clientX; joysticks.right.startY = t.clientY; joysticks.right.id = t.identifier;
             }
         }
     });
 
     window.addEventListener('touchmove', e => {
-        for (let touch of e.changedTouches) {
-            if (leftJoystick.active && touch.identifier === leftJoystick.identifier) {
-                leftJoystick.moveX = touch.clientX - leftJoystick.startX;
-                leftJoystick.moveY = touch.clientY - leftJoystick.startY;
-            }
-            if (rightJoystick.active && touch.identifier === rightJoystick.identifier) {
-                rightJoystick.moveX = touch.clientX - rightJoystick.startX;
-                rightJoystick.moveY = touch.clientY - rightJoystick.startY;
+        if(!gameActive) return;
+        for (let t of e.changedTouches) {
+            if (t.identifier === joysticks.left.id) {
+                joysticks.left.moveX = t.clientX - joysticks.left.startX; joysticks.left.moveY = t.clientY - joysticks.left.startY;
+            } else if (t.identifier === joysticks.right.id) {
+                joysticks.right.moveX = t.clientX - joysticks.right.startX; joysticks.right.moveY = t.clientY - joysticks.right.startY;
+                joysticks.right.angle = Math.atan2(joysticks.right.moveY, joysticks.right.moveX);
             }
         }
     });
 
     window.addEventListener('touchend', e => {
-        for (let touch of e.changedTouches) {
-            if (touch.identifier === leftJoystick.identifier) {
-                leftJoystick.active = false;
-                leftJoystick.moveX = 0;
-                leftJoystick.moveY = 0;
-            }
-            if (touch.identifier === rightJoystick.identifier) {
-                rightJoystick.active = false;
-                rightJoystick.moveX = 0;
-                rightJoystick.moveY = 0;
-            }
+        for (let t of e.changedTouches) {
+            if (t.identifier === joysticks.left.id) { joysticks.left.active = false; joysticks.left.moveX = 0; joysticks.left.moveY = 0; joysticks.left.id = -1; }
+            else if (t.identifier === joysticks.right.id) { joysticks.right.active = false; joysticks.right.moveX = 0; joysticks.right.moveY = 0; joysticks.right.id = -1; }
         }
     });
 
-    function spawnEnemy() {
-        if (!gameActive) return;
-        const radius = 15;
-        let x, y;
-        if (Math.random() < 0.5) {
-            x = Math.random() < 0.5 ? -radius : canvas.width + radius;
-            y = Math.random() * canvas.height;
-        } else {
-            x = Math.random() * canvas.width;
-            y = Math.random() < 0.5 ? -radius : canvas.height + radius;
+    // Коллизии
+    function isCollidingWithWalls(x, y, r) {
+        for(let w of walls) {
+            if(x+r > w.x && x-r < w.x+w.w && y+r > w.y && y-r < w.y+w.h) return true;
         }
-        enemies.push({ x, y, radius, color: '#f0f', lastShot: 0 });
+        return false;
     }
-    setInterval(spawnEnemy, 2000);
 
-    function resetGame() {
-        player.hp = 100;
-        player.x = canvas.width / 2;
-        player.y = canvas.height / 2;
-        score = 0;
-        enemies = [];
-        playerBullets = [];
-        enemyBullets = [];
-        gameActive = true;
-        gameOverScreen.style.display = 'none';
-        hpDisplay.innerText = player.hp;
-        scoreDisplay.innerText = score;
+    function createExplosion(x, y, color) {
+        for(let i=0; i<10; i++) particles.push({x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 30, color});
+        playSnd(snds.expl);
+    }
+
+    // Кнопки меню
+    document.querySelectorAll('.diff-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active'); difficulty = parseInt(b.dataset.diff);
+    }));
+    document.querySelectorAll('.map-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.map-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active'); currentMap = b.dataset.map;
+    }));
+
+    document.getElementById('start-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', showMenu);
+
+    function startGame() {
+        gameActive = true; score = 0; player.hp = 100; player.x = WORLD_SIZE/2; player.y = WORLD_SIZE/2;
+        enemies = []; playerBullets = []; enemyBullets = []; particles = [];
+        ui.menu.classList.add('hidden'); ui.layer.classList.remove('hidden'); ui.wInfo.classList.remove('hidden'); ui.radar.classList.remove('hidden');
+        ui.hp.innerText = 100; ui.score.innerText = 0; ui.wName.innerText = weapons[player.weapon].name;
+        initMap(currentMap);
+        nextEnemyTime = Date.now() + 1000;
         requestAnimationFrame(update);
     }
 
+    function showMenu() { ui.go.classList.add('hidden'); ui.menu.classList.remove('hidden'); }
+
+    function gameOver() {
+        gameActive = false; playSnd(snds.go);
+        ui.layer.classList.add('hidden'); ui.wInfo.classList.add('hidden'); ui.radar.classList.add('hidden');
+        ui.go.classList.remove('hidden'); ui.fScore.innerText = score;
+    }
+
+    // Игровой цикл
     function update() {
-        if (!gameActive) return;
+        if(!gameActive) return;
+        const now = Date.now();
 
-        // Движение игрока
-        if (leftJoystick.active) {
-            const dist = Math.hypot(leftJoystick.moveX, leftJoystick.moveY);
-            if (dist > 5) {
-                player.x += (leftJoystick.moveX / dist) * player.speed;
-                player.y += (leftJoystick.moveY / dist) * player.speed;
+        // Спавн врагов
+        if(now > nextEnemyTime) { spawnEnemy(); nextEnemyTime = now + getDiffSettings().spawn; }
+
+        // Движение игрока и коллизии со стенами
+        if(joysticks.left.active) {
+            const dist = Math.hypot(joysticks.left.moveX, joysticks.left.moveY);
+            if(dist > 5) {
+                let nextX = player.x + (joysticks.left.moveX / dist) * player.speed;
+                let nextY = player.y + (joysticks.left.moveY / dist) * player.speed;
+                if(!isCollidingWithWalls(nextX, player.y, player.radius)) player.x = nextX;
+                if(!isCollidingWithWalls(player.x, nextY, player.radius)) player.y = nextY;
             }
         }
 
-        // Стрельба игрока
-        if (rightJoystick.active) {
-            const dist = Math.hypot(rightJoystick.moveX, rightJoystick.moveY);
-            if (dist > 10 && Date.now() % 10 === 0) {
+        // Камера следует за игроком
+        camera.x = player.x - canvas.width / 2;
+        camera.y = player.y - canvas.height / 2;
+
+        // Стрельба игрока (моделька пушки)
+        if(joysticks.right.active) {
+            const w = weapons[player.weapon];
+            if(now - player.lastShot > w.fireRate) {
                 playerBullets.push({
-                    x: player.x,
-                    y: player.y,
-                    vx: (rightJoystick.moveX / dist) * 7,
-                    vy: (rightJoystick.moveY / dist) * 7
+                    x: player.x, y: player.y,
+                    vx: Math.cos(joysticks.right.angle) * w.bSpeed,
+                    vy: Math.sin(joysticks.right.angle) * w.bSpeed,
+                    size: w.bSize, dmg: w.bDmg, color: w.color
                 });
+                player.lastShot = now; playSnd(snds.shot);
             }
         }
 
-        // Обработка пуль игрока
-        playerBullets.forEach((b, bi) => {
+        // Пули игрока
+        playerBullets.forEach((b, i) => {
             b.x += b.vx; b.y += b.vy;
+            if(isCollidingWithWalls(b.x, b.y, b.size)) playerBullets.splice(i, 1);
             enemies.forEach((en, ei) => {
-                if (Math.hypot(b.x - en.x, b.y - en.y) < en.radius) {
-                    enemies.splice(ei, 1);
-                    playerBullets.splice(bi, 1);
-                    score += 10;
-                    scoreDisplay.innerText = score;
+                if(Math.hypot(b.x - en.x, b.y - en.y) < en.radius) {
+                    en.hp -= b.dmg; playerBullets.splice(i, 1);
+                    if(en.hp <= 0) { enemies.splice(ei, 1); score += 10 + difficulty*5; ui.score.innerText = score; createExplosion(en.x, en.y, '#f00'); }
                 }
             });
         });
 
-        // Обработка врагов
+        // Враги (движение, стрельба, урон игроку)
         enemies.forEach(en => {
             const dist = Math.hypot(player.x - en.x, player.y - en.y);
-            en.x += ((player.x - en.x) / dist) * 1.5;
-            en.y += ((player.y - en.y) / dist) * 1.5;
+            let vx = ((player.x - en.x) / dist) * en.speed;
+            let vy = ((player.y - en.y) / dist) * en.speed;
+            if(!isCollidingWithWalls(en.x + vx, en.y, en.radius)) en.x += vx;
+            if(!isCollidingWithWalls(en.x, en.y + vy, en.radius)) en.y += vy;
 
-            // Стрельба ботов
-            if (Date.now() - en.lastShot > 2500) {
+            // Враги стреляют в игрока
+            if(now - en.lastShot > 3000 / difficulty && dist < 500) {
                 enemyBullets.push({
                     x: en.x, y: en.y,
-                    vx: ((player.x - en.x) / dist) * 4,
-                    vy: ((player.y - en.y) / dist) * 4
+                    vx: ((player.x - en.x) / dist) * 4, vy: ((player.y - en.y) / dist) * 4
                 });
-                en.lastShot = Date.now();
+                en.lastShot = now;
             }
         });
 
-        // ПРОВЕРКА УРОНА ПО ИГРОКУ
-        enemyBullets.forEach((eb, ebi) => {
-            eb.x += eb.vx; eb.y += eb.vy;
-            // Если пуля бота попала в игрока
-            if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.radius) {
-                enemyBullets.splice(ebi, 1);
-                player.hp -= 10; // Урон
-                hpDisplay.innerText = player.hp;
-                if (player.hp <= 0) {
-                    gameActive = false;
-                    gameOverScreen.style.display = 'block';
-                }
+        // Пули врагов (наносят УРОН)
+        enemyBullets.forEach((b, i) => {
+            b.x += b.vx; b.y += b.vy;
+            if(isCollidingWithWalls(b.x, b.y, 4)) enemyBullets.splice(i, 1);
+            if(Math.hypot(b.x - player.x, b.y - player.y) < player.radius) {
+                enemyBullets.splice(i, 1); player.hp -= 15; ui.hp.innerText = player.hp;
+                createExplosion(player.x, player.y, '#ff0');
+                if(player.hp <= 0) gameOver();
             }
         });
+
+        particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life--; if(p.life<=0) particles.splice(i, 1); });
 
         draw();
+        drawRadar(); // Отрисовка радара
         requestAnimationFrame(update);
     }
 
     function draw() {
-        ctx.fillStyle = '#050505';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.save(); ctx.translate(-camera.x, -camera.y);
 
-        // Игрок
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-        ctx.fillStyle = player.color;
-        ctx.fill();
-        ctx.shadowBlur = 15; ctx.shadowColor = player.color;
+        // Сетки мира
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)'; ctx.beginPath();
+        for(let x=0; x<=WORLD_SIZE; x+=100) { ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); }
+        for(let y=0; y<=WORLD_SIZE; y+=100) { ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); }
+        ctx.stroke();
+
+        // Стены
+        ctx.fillStyle = '#111'; ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2;
+        walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeRect(w.x, w.y, w.w, w.h); });
+
+        // Игрок и пушка
+        ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fillStyle = player.color; ctx.fill(); ctx.shadowBlur = 15; ctx.shadowColor = player.color;
+        weapons[player.weapon].visual(ctx, player.x, player.y, joysticks.right.active ? joysticks.right.angle : 0);
 
         // Враги
-        enemies.forEach(en => {
-            ctx.beginPath();
-            ctx.arc(en.x, en.y, en.radius, 0, Math.PI * 2);
-            ctx.fillStyle = en.color;
-            ctx.fill();
-            ctx.shadowColor = en.color;
-        });
+        enemies.forEach(en => { ctx.beginPath(); ctx.arc(en.x, en.y, en.radius, 0, Math.PI*2); ctx.fillStyle = en.color; ctx.fill(); ctx.shadowColor = en.color; });
 
         // Пули
-        ctx.fillStyle = '#fff';
-        playerBullets.forEach(b => ctx.fillRect(b.x, b.y, 4, 4));
+        ctx.shadowBlur = 0;
+        playerBullets.forEach(b => { ctx.fillStyle = b.color; ctx.fillRect(b.x-b.size/2, b.y-b.size/2, b.size, b.size); });
         ctx.fillStyle = '#f00';
-        enemyBullets.forEach(b => ctx.fillRect(b.x, b.y, 5, 5));
+        enemyBullets.forEach(b => { ctx.fillRect(b.x-2, b.y-2, 4, 4); });
 
-        // Джойстики (визуально)
-        if (leftJoystick.active) drawJoy(leftJoystick);
-        if (rightJoystick.active) drawJoy(rightJoystick);
+        particles.forEach(p => { ctx.fillStyle = `rgba(${p.color === '#f00' ? '255,0,0' : '255,255,0'}, ${p.life/30})`; ctx.fillRect(p.x, p.y, 3, 3); });
+        
+        ctx.restore();
+
+        // Визуал джойстиков
+        if(joysticks.left.active) drawJoy(joysticks.left);
+        if(joysticks.right.active) drawJoy(joysticks.right);
     }
 
     function drawJoy(j) {
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
-        ctx.beginPath(); ctx.arc(j.startX, j.startY, 40, 0, Math.PI*2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(j.startX + j.moveX, j.startY + j.moveY, 20, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(j.startX, j.startY, 50, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(j.startX + j.moveX, j.startY + j.moveY, 25, 0, Math.PI*2); ctx.fillStyle = 'rgba(0, 255, 255, 0.1)'; ctx.fill(); ctx.stroke();
     }
 
-    update();
+    // ЛОГИКА РАДАРА
+    function drawRadar() {
+        const rSize = 120;
+        const scale = rSize / WORLD_SIZE; // Масштаб всего мира в иконку
+        radarCtx.clearRect(0, 0, rSize, rSize);
+        
+        // Фон радара
+        radarCtx.fillStyle = 'rgba(0, 30, 30, 0.7)';
+        radarCtx.beginPath(); radarCtx.arc(rSize/2, rSize/2, rSize/2, 0, Math.PI*2); radarCtx.fill();
+        radarCtx.strokeStyle = 'rgba(0, 255, 255, 0.5)'; radarCtx.stroke();
+
+        radarCtx.save();
+        // Центрируем радар относительно игрока на карте
+        radarCtx.translate(rSize/2 - player.x * scale, rSize/2 - player.y * scale);
+
+        // Стены на радаре
+        radarCtx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+        walls.forEach(w => {
+            radarCtx.fillRect(w.x * scale, w.y * scale, w.w * scale, w.h * scale);
+        });
+
+        // Враги на радаре (красные точки)
+        radarCtx.fillStyle = '#f00';
+        enemies.forEach(en => {
+            radarCtx.beginPath(); radarCtx.arc(en.x * scale, en.y * scale, 2, 0, Math.PI*2); radarCtx.fill();
+        });
+
+        radarCtx.restore();
+
+        // Игрок на радаре (всегда в центре, синяя точка)
+        radarCtx.fillStyle = '#0ff';
+        radarCtx.beginPath(); radarCtx.arc(rSize/2, rSize/2, 3, 0, Math.PI*2); radarCtx.fill();
+        // Направление взгляда/стрельбы
+        if(joysticks.right.active) {
+            radarCtx.strokeStyle = '#0ff'; radarCtx.lineWidth = 1;
+            radarCtx.beginPath(); radarCtx.moveTo(rSize/2, rSize/2);
+            radarCtx.lineTo(rSize/2 + Math.cos(joysticks.right.angle)*15, rSize/2 + Math.sin(joysticks.right.angle)*15);
+            radarCtx.stroke();
+        }
+    }
+
 </script>
 </body>
 </html>
