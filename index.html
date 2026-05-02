@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Crystal Battle: Camera & Slider</title>
+    <title>Crystal Battle: Central Camera Fix</title>
     <style>
         * { box-sizing: border-box; touch-action: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; position: fixed; font-family: sans-serif; }
@@ -17,34 +17,16 @@
         
         .hidden { display: none !important; }
         
-        /* Слайдер карт */
         .map-slider {
-            display: flex;
-            overflow-x: auto;
-            width: 90%;
-            max-width: 400px;
-            gap: 10px;
-            padding: 15px 10px;
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+            display: flex; overflow-x: auto; width: 90%; max-width: 400px; gap: 10px;
+            padding: 15px 10px; scroll-snap-type: x mandatory; scrollbar-width: none;
         }
         .map-slider::-webkit-scrollbar { display: none; }
         
         .map-card {
-            flex: 0 0 120px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #0ff;
-            border-radius: 8px;
-            scroll-snap-align: center;
-            font-weight: bold;
-            font-size: 14px;
-            transition: 0.3s;
-            cursor: pointer;
-            background: rgba(0, 255, 255, 0.05);
+            flex: 0 0 120px; height: 60px; display: flex; align-items: center; justify-content: center;
+            border: 2px solid #0ff; border-radius: 8px; scroll-snap-align: center;
+            font-weight: bold; font-size: 14px; transition: 0.3s; cursor: pointer; background: rgba(0, 255, 255, 0.05);
         }
         .map-card.active { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
 
@@ -70,18 +52,15 @@
 
 <div id="m-screen" class="screen">
     <h2 style="margin-bottom: 20px; letter-spacing: 3px; color: #f0f;">CRYSTAL BATTLE</h2>
-    
-    <p style="font-size: 12px; margin-bottom: 5px;">ВЫБЕРИТЕ КАРТУ (ЛИСТАЙТЕ):</p>
+    <p style="font-size: 12px; margin-bottom: 5px;">ВЫБЕРИТЕ КАРТУ:</p>
     <div class="map-slider" id="map-slider"></div>
-
     <p style="font-size: 12px; margin: 15px 0 5px 0;">СЛОЖНОСТЬ:</p>
     <div id="diff-select">
         <button class="d-btn active" data-d="1">EASY</button>
         <button class="d-btn" data-d="2">NORM</button>
         <button class="d-btn" data-d="3">HARD</button>
     </div>
-    
-    <button id="start-btn" style="font-size: 1.3em; border-color: #f0f; color: #f0f; margin-top: 30px; width: 220px; box-shadow: 0 0 10px #f0f;">СТАРТ</button>
+    <button id="start-btn" style="font-size: 1.3em; border-color: #f0f; color: #f0f; margin-top: 30px; width: 220px;">СТАРТ</button>
 </div>
 
 <div id="go-screen" class="screen hidden">
@@ -105,20 +84,18 @@
         { n: "OFFICE", bg: "#2c3e50", wall: "#34495e", obj: "#2980b9" },
         { n: "AZTEC", bg: "#1e3d14", wall: "#0f2005", obj: "#2ecc71" },
         { n: "INFERNO", bg: "#4d3a2b", wall: "#2d1f14", obj: "#a0522d" },
-        { n: "NUKE", bg: "#7f8c8d", wall: "#2c3e50", obj: "#95a5a6" },
-        { n: "MIRAGE", bg: "#e3c9a1", wall: "#b59e76", obj: "#9c845e" }
+        { n: "NUKE", bg: "#7f8c8d", wall: "#2c3e50", obj: "#95a5a6" }
     ];
 
     function fixCanvas() {
         const dpr = window.devicePixelRatio || 1;
         canvas.width = window.innerWidth * dpr;
         canvas.height = window.innerHeight * dpr;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.scale(dpr, dpr);
     }
     window.addEventListener('resize', fixCanvas);
     fixCanvas();
 
-    // Генерация слайдера
     const slider = document.getElementById('map-slider');
     mapConfigs.forEach((m, i) => {
         const card = document.createElement('div');
@@ -126,9 +103,7 @@
         card.innerText = m.n;
         card.onclick = () => {
             document.querySelectorAll('.map-card').forEach(c => c.classList.remove('active'));
-            card.classList.add('active');
-            curMap = i;
-            card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            card.classList.add('active'); curMap = i;
         };
         slider.appendChild(card);
     });
@@ -137,8 +112,8 @@
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        ctx.fillStyle = "#444"; ctx.fillRect(10, -4, 22, 8);
-        ctx.fillStyle = "#000"; ctx.fillRect(-4, -6, 16, 12);
+        ctx.fillStyle = "#444"; ctx.fillRect(8, -3, 18, 6);
+        ctx.fillStyle = "#222"; ctx.fillRect(-2, -5, 12, 10);
         ctx.restore();
     }
 
@@ -170,32 +145,32 @@
         if(!gameActive) return;
         
         if(joyL.active) {
-            let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*7, vy = (joyL.y/d)*7;
+            let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*6.5, vy = (joyL.y/d)*6.5;
             if(!checkCollision(player.x + vx, player.y, player.r)) player.x += vx;
             if(!checkCollision(player.x, player.y + vy, player.r)) player.y += vy;
         }
 
-        if(joyR.active && Date.now() - player.lastS > 250) {
-            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*18, vy: Math.sin(joyR.a)*18, dead: false});
+        if(joyR.active && Date.now() - player.lastS > 220) {
+            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*16, vy: Math.sin(joyR.a)*16, dead: false});
             player.lastS = Date.now();
         }
         
         let maxBots = [0, 4, 8, 14][diff];
-        if(enemies.length < maxBots && Math.random() < 0.03) {
+        if(enemies.length < maxBots && Math.random() < 0.035) {
             let rx = Math.random()*worldSize, ry = Math.random()*worldSize;
             if(!checkCollision(rx, ry, 20) && Math.hypot(rx-player.x, ry-player.y) > 600) {
                 enemies.push({x: rx, y: ry, hp: 60, lastS: 0, a: 0});
             }
         }
 
-        enemies.forEach((en, i) => {
+        enemies.forEach(en => {
             let dist = Math.hypot(player.x-en.x, player.y-en.y);
             en.a = Math.atan2(player.y - en.y, player.x - en.x);
-            let spd = 2 + (diff * 0.5);
+            let spd = 1.5 + (diff * 0.6);
             let vx = (player.x-en.x)/dist * spd, vy = (player.y-en.y)/dist * spd;
             if(!checkCollision(en.x + vx, en.y + vy, 15)) { en.x += vx; en.y += vy; }
-            if(dist < 550 && Date.now() - en.lastS > 2000/diff) {
-                eB.push({x: en.x, y: en.y, vx: Math.cos(en.a)*11, vy: Math.sin(en.a)*11, dead: false});
+            if(dist < 500 && Date.now() - en.lastS > 1900/diff) {
+                eB.push({x: en.x, y: en.y, vx: Math.cos(en.a)*9, vy: Math.sin(en.a)*9, dead: false});
                 en.lastS = Date.now();
             }
         });
@@ -212,7 +187,7 @@
 
         eB.forEach(eb => {
             eb.x += eb.vx; eb.y += eb.vy;
-            if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) { player.hp -= 8 * diff; player.hit = 10; eb.dead = true; }
+            if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) { player.hp -= 7 * diff; player.hit = 10; eb.dead = true; }
             if(eb.x < 0 || eb.x > worldSize || eb.y < 0 || eb.y > worldSize) eb.dead = true;
         });
         eB = eB.filter(eb => !eb.dead);
@@ -225,19 +200,19 @@
 
     function draw() {
         const config = mapConfigs[curMap], sw = window.innerWidth, sh = window.innerHeight;
-        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, sw, sh); // Очистка
+        ctx.clearRect(0, 0, sw, sh);
         
         ctx.save();
-        // КАМЕРА: центрируем на игроке
+        // ИСПРАВЛЕННАЯ КАМЕРА: (Центр экрана) - (Координата игрока)
         ctx.translate(sw/2 - player.x, sh/2 - player.y);
         
-        // Фон карты
+        // Фон
         ctx.fillStyle = config.bg; ctx.fillRect(0, 0, worldSize, worldSize);
-        ctx.strokeStyle = config.wall; ctx.lineWidth = 20; ctx.strokeRect(0, 0, worldSize, worldSize);
+        ctx.strokeStyle = config.wall; ctx.lineWidth = 15; ctx.strokeRect(0, 0, worldSize, worldSize);
         
         obstacles.forEach(o => { ctx.fillStyle = o.c; ctx.fillRect(o.x, o.y, o.w, o.h); });
 
-        // Игрок (Темно-синий)
+        // Игрок
         drawWeapon(player.x, player.y, joyR.active ? joyR.a : 0);
         ctx.fillStyle = player.hit > 0 ? "#fff" : "#00008B";
         if(player.hit > 0) player.hit--;
@@ -250,15 +225,15 @@
         });
 
         // Пули
-        ctx.fillStyle = "#ff0"; pB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
-        ctx.fillStyle = "#f00"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
+        ctx.fillStyle = "#ff0"; pB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI*2); ctx.fill(); });
+        ctx.fillStyle = "#f00"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI*2); ctx.fill(); });
         ctx.restore();
         
-        // Интерфейс поверх камеры (статичный)
+        // UI
         let rS = 100, rP = 20, s = rS / worldSize, rY = sh - rS - rP;
         ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(rP, rY, rS, rS);
         ctx.strokeStyle = "#0ff"; ctx.strokeRect(rP, rY, rS, rS);
-        ctx.fillStyle = "#00008B"; ctx.fillRect(rP + player.x*s - 2, rY + player.y*s - 2, 4, 4);
+        ctx.fillStyle = "#0ff"; ctx.fillRect(rP + player.x*s - 2, rY + player.y*s - 2, 4, 4);
 
         if(joyL.active) drawJ(joyL.sx, joyL.sy, joyL.x, joyL.y);
         if(joyR.active) drawJ(joyR.sx, joyR.sy, joyR.x, joyR.y);
@@ -269,7 +244,7 @@
     }
 
     function drawJ(sx, sy, x, y) { 
-        ctx.strokeStyle="rgba(0,255,255,0.5)"; ctx.lineWidth=3; 
+        ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=2; 
         ctx.beginPath(); ctx.arc(sx, sy, 40, 0, Math.PI*2); ctx.stroke(); 
         ctx.beginPath(); ctx.arc(sx+x, sy+y, 15, 0, Math.PI*2); ctx.stroke(); 
     }
