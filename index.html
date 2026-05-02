@@ -3,270 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Crystal Battle: Central Camera Fix</title>
+    <title>Crystal Battle: In-Game Shop</title>
     <style>
-        * { box-sizing: border-box; touch-action: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; position: fixed; font-family: sans-serif; }
-        canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+        * { box-sizing: border-box; touch-action: none; -webkit-user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1a1a1a; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; }
         
-        .screen { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            background: rgba(0,0,0,0.95); z-index: 100; color: #0ff; text-align: center;
-        }
-        
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10,10,10,0.9); z-index: 100; color: #ddd; }
         .hidden { display: none !important; }
         
-        .map-slider {
-            display: flex; overflow-x: auto; width: 90%; max-width: 400px; gap: 10px;
-            padding: 15px 10px; scroll-snap-type: x mandatory; scrollbar-width: none;
-        }
-        .map-slider::-webkit-scrollbar { display: none; }
-        
-        .map-card {
-            flex: 0 0 120px; height: 60px; display: flex; align-items: center; justify-content: center;
-            border: 2px solid #0ff; border-radius: 8px; scroll-snap-align: center;
-            font-weight: bold; font-size: 14px; transition: 0.3s; cursor: pointer; background: rgba(0, 255, 255, 0.05);
-        }
-        .map-card.active { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
+        /* Кнопка Магазина в бою */
+        #shop-toggle-btn { position: absolute; top: 110px; left: 20px; z-index: 70; background: #f0f; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; pointer-events: auto; }
 
-        button { 
-            background: transparent; border: 2px solid #0ff; color: #0ff; 
-            padding: 10px 15px; margin: 4px; cursor: pointer; 
-            text-transform: uppercase; border-radius: 8px; font-weight: bold;
-        }
-        button:active, button.active { background: #0ff; color: #000; }
+        /* Окно Магазина */
+        #shop-modal { background: #111; border: 2px solid #f0f; border-radius: 15px; width: 90%; max-width: 450px; max-height: 80vh; overflow-y: auto; padding: 20px; z-index: 110; }
+        .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .weapon-item { background: #222; border: 1px solid #444; padding: 8px; border-radius: 8px; text-align: center; }
+        .weapon-item.selected { border-color: #f0f; box-shadow: 0 0 8px #f0f; }
+        .weapon-item h3 { font-size: 13px; margin: 5px 0; color: #f0f; }
+        .buy-btn { background: #444; border: none; color: #fff; padding: 6px; border-radius: 4px; width: 100%; font-size: 12px; }
+        .buy-btn.can-buy { background: #2ecc71; }
+
+        button.main-btn { background: #f0f; border: none; color: #fff; padding: 15px 40px; font-weight: bold; border-radius: 8px; font-size: 18px; }
+
+        #ui-layer { position: absolute; top: 20px; left: 20px; z-index: 50; color: #eee; pointer-events: none; }
+        #xp-bar { width: 150px; height: 8px; border: 1px solid #555; background: #222; margin-top: 5px; border-radius: 4px; overflow: hidden; }
+        #xp-fill { width: 0%; height: 100%; background: #f0f; transition: 0.3s; }
         
-        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; color: #0ff; font-family: monospace; }
-        #xp-bar { width: 140px; height: 8px; border: 1px solid #0ff; background: rgba(0,255,255,0.1); margin-top: 4px; }
-        #xp-fill { width: 0%; height: 100%; background: #f0f; }
-        .sig { position: absolute; bottom: 8px; right: 8px; color: rgba(0,255,255,0.3); font-size: 11px; z-index: 60; }
+        #radar { position: absolute; top: 20px; right: 20px; width: 100px; height: 100px; border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; background: rgba(0,0,0,0.5); z-index: 60; }
+        .sig { position: absolute; bottom: 10px; right: 15px; color: rgba(255,255,255,0.2); font-size: 11px; }
     </style>
 </head>
 <body>
 
-<div id="ui-layer" class="hidden">
-    <div>HP: <span id="h-v">100</span> | 💎: <span id="m-v">0</span></div>
-    <div id="xp-bar"><div id="xp-fill"></div></div>
-</div>
-
 <div id="m-screen" class="screen">
-    <h2 style="margin-bottom: 20px; letter-spacing: 3px; color: #f0f;">CRYSTAL BATTLE</h2>
-    <p style="font-size: 12px; margin-bottom: 5px;">ВЫБЕРИТЕ КАРТУ:</p>
-    <div class="map-slider" id="map-slider"></div>
-    <p style="font-size: 12px; margin: 15px 0 5px 0;">СЛОЖНОСТЬ:</p>
-    <div id="diff-select">
-        <button class="d-btn active" data-d="1">EASY</button>
-        <button class="d-btn" data-d="2">NORM</button>
-        <button class="d-btn" data-d="3">HARD</button>
+    <h1 style="color: #f0f; margin-bottom: 5px;">CRYSTAL BATTLE</h1>
+    <p style="color: #666; margin-bottom: 25px;">by Кирилл Пьяничук</p>
+    <button id="start-btn" class="main-btn">НАЧАТЬ ИГРУ</button>
+</div>
+
+<div id="shop-overlay" class="screen hidden">
+    <div id="shop-modal">
+        <h2 style="color: #f0f; margin: 0; text-align: center;">SHOP</h2>
+        <p style="text-align: center;">Crystals: <span id="shop-money">0</span> 💎</p>
+        <div class="shop-grid" id="shop-grid"></div>
+        <button class="main-btn" onclick="toggleShop()" style="width:100%; margin-top:15px; padding: 10px;">В БОЙ!</button>
     </div>
-    <button id="start-btn" style="font-size: 1.3em; border-color: #f0f; color: #f0f; margin-top: 30px; width: 220px;">СТАРТ</button>
 </div>
 
-<div id="go-screen" class="screen hidden">
-    <h1 style="color:red;">GAME OVER</h1>
-    <button onclick="location.reload()">В МЕНЮ</button>
+<div id="ui-layer" class="hidden">
+    <div style="font-size: 20px; font-weight: bold;">HP: <span id="h-v">100</span> | 💎: <span id="m-v">0</span></div>
+    <div id="xp-bar"><div id="xp-fill"></div></div>
+    <div style="font-size: 11px; margin-top: 3px;">LEVEL: <span id="l-v">1</span> | <span id="cur-w-name">Pistol</span></div>
+    <button id="shop-toggle-btn" onclick="toggleShop()">SHOP 💎</button>
 </div>
 
+<div id="radar" class="hidden"><canvas id="radarCanvas" width="100" height="100"></canvas></div>
 <div class="sig">by Кирилл Пьяничук</div>
 <canvas id="gC"></canvas>
 
 <script>
     const canvas = document.getElementById('gC'), ctx = canvas.getContext('2d');
-    let stats = { money: 0 }, gameActive = false, xp = 0, diff = 1, curMap = 0;
-    let player = { x: 1250, y: 1250, hp: 100, r: 16, lastS: 0, hit: 0 };
-    let enemies = [], pB = [], eB = [], obstacles = [], worldSize = 2500;
+    const rCanvas = document.getElementById('radarCanvas'), rCtx = rCanvas.getContext('2d');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playShootSound(type) {
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if(type === 'player') { osc.type = 'square'; osc.frequency.setValueAtTime(160, audioCtx.currentTime); gain.gain.setValueAtTime(0.08, audioCtx.currentTime); }
+        else { osc.type = 'sine'; osc.frequency.setValueAtTime(100, audioCtx.currentTime); gain.gain.setValueAtTime(0.04, audioCtx.currentTime); }
+        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    let gameActive = false, isPaused = false, worldSize = 3000, zoom = 0.6;
+    let money = 0, xp = 0, level = 1;
+    let player = { x: 1500, y: 1500, hp: 100, maxHp: 100, r: 24, lastS: 0, weaponIdx: 0 };
+    let enemies = [], bullets = [], eBullets = [], obstacles = [];
     let joyL = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1 };
     let joyR = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1, a: 0 };
 
-    const mapConfigs = [
-        { n: "DUST", bg: "#c4a484", wall: "#8b7355", obj: "#d2b48c" },
-        { n: "OFFICE", bg: "#2c3e50", wall: "#34495e", obj: "#2980b9" },
-        { n: "AZTEC", bg: "#1e3d14", wall: "#0f2005", obj: "#2ecc71" },
-        { n: "INFERNO", bg: "#4d3a2b", wall: "#2d1f14", obj: "#a0522d" },
-        { n: "NUKE", bg: "#7f8c8d", wall: "#2c3e50", obj: "#95a5a6" }
+    const weapons = [
+        { n: "Glock-18", dmg: 20, spd: 250, price: 0, color: "#fff", owned: true },
+        { n: "Deagle", dmg: 55, spd: 550, price: 150, color: "#f1c40f", owned: false },
+        { n: "MP5", dmg: 18, spd: 110, price: 300, color: "#3498db", owned: false },
+        { n: "AK-47", dmg: 40, spd: 160, price: 600, color: "#e67e22", owned: false },
+        { n: "M4A1", dmg: 35, spd: 130, price: 900, color: "#2ecc71", owned: false },
+        { n: "AWP", dmg: 250, spd: 1300, price: 1500, color: "#9b59b6", owned: false },
+        { n: "P90", dmg: 14, spd: 75, price: 2000, color: "#1abc9c", owned: false },
+        { n: "Plasma", dmg: 50, spd: 220, price: 3500, color: "#00ffff", owned: false },
+        { n: "Minigun", dmg: 28, spd: 55, price: 6000, color: "#e74c3c", owned: false },
+        { n: "BFG-9000", dmg: 600, spd: 1100, price: 12000, color: "#f0f", owned: false }
     ];
 
-    function fixCanvas() {
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = window.innerWidth * dpr;
-        canvas.height = window.innerHeight * dpr;
-        ctx.scale(dpr, dpr);
-    }
-    window.addEventListener('resize', fixCanvas);
-    fixCanvas();
-
-    const slider = document.getElementById('map-slider');
-    mapConfigs.forEach((m, i) => {
-        const card = document.createElement('div');
-        card.className = 'map-card' + (i === 0 ? ' active' : '');
-        card.innerText = m.n;
-        card.onclick = () => {
-            document.querySelectorAll('.map-card').forEach(c => c.classList.remove('active'));
-            card.classList.add('active'); curMap = i;
-        };
-        slider.appendChild(card);
-    });
-
-    function drawWeapon(x, y, angle) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-        ctx.fillStyle = "#444"; ctx.fillRect(8, -3, 18, 6);
-        ctx.fillStyle = "#222"; ctx.fillRect(-2, -5, 12, 10);
-        ctx.restore();
+    function updateShopUI() {
+        const grid = document.getElementById('shop-grid');
+        document.getElementById('shop-money').innerText = money;
+        grid.innerHTML = '';
+        weapons.forEach((w, i) => {
+            const div = document.createElement('div');
+            div.className = `weapon-item ${player.weaponIdx === i ? 'selected' : ''}`;
+            div.innerHTML = `
+                <h3>${w.n}</h3>
+                ${w.owned ? `<button class="buy-btn" style="background:#555" onclick="selectW(${i})">SELECT</button>` : 
+                `<button class="buy-btn ${money >= w.price ? 'can-buy' : ''}" onclick="buyW(${i})">${w.price} 💎</button>`}
+            `;
+            grid.appendChild(div);
+        });
     }
 
-    function generateMap() {
+    function buyW(i) { if(money >= weapons[i].price) { money -= weapons[i].price; weapons[i].owned = true; selectW(i); } }
+    function selectW(i) { player.weaponIdx = i; updateShopUI(); }
+    function toggleShop() { 
+        isPaused = !isPaused; 
+        document.getElementById('shop-overlay').classList.toggle('hidden'); 
+        if(isPaused) updateShopUI();
+    }
+
+    function generateObstacles() {
         obstacles = [];
-        const config = mapConfigs[curMap];
-        for(let i=0; i<45; i++) {
-            let obj = {
-                x: Math.random() * (worldSize - 400) + 200,
-                y: Math.random() * (worldSize - 400) + 200,
-                w: 80 + Math.random() * 120,
-                h: 80 + Math.random() * 120,
-                c: config.obj
-            };
-            if(Math.hypot(obj.x - 1250, obj.y - 1250) > 400) obstacles.push(obj);
-        }
+        for(let i=0; i<30; i++) obstacles.push({ x: Math.random()*(worldSize-600)+300, y: Math.random()*(worldSize-600)+300, w: 140, h: 140 });
     }
 
-    function checkCollision(x, y, r) {
-        for(let o of obstacles) if(x + r > o.x && x - r < o.x + o.w && y + r > o.y && y - r < o.y + o.h) return true;
-        return x < r || x > worldSize-r || y < r || y > worldSize-r;
-    }
-
-    document.querySelectorAll('.d-btn').forEach(btn => {
-        btn.onclick = () => { document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); diff = parseInt(btn.dataset.d); };
-    });
-
-    function loop() {
-        if(!gameActive) return;
-        
-        if(joyL.active) {
-            let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*6.5, vy = (joyL.y/d)*6.5;
-            if(!checkCollision(player.x + vx, player.y, player.r)) player.x += vx;
-            if(!checkCollision(player.x, player.y + vy, player.r)) player.y += vy;
-        }
-
-        if(joyR.active && Date.now() - player.lastS > 220) {
-            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*16, vy: Math.sin(joyR.a)*16, dead: false});
-            player.lastS = Date.now();
-        }
-        
-        let maxBots = [0, 4, 8, 14][diff];
-        if(enemies.length < maxBots && Math.random() < 0.035) {
-            let rx = Math.random()*worldSize, ry = Math.random()*worldSize;
-            if(!checkCollision(rx, ry, 20) && Math.hypot(rx-player.x, ry-player.y) > 600) {
-                enemies.push({x: rx, y: ry, hp: 60, lastS: 0, a: 0});
-            }
-        }
-
-        enemies.forEach(en => {
-            let dist = Math.hypot(player.x-en.x, player.y-en.y);
-            en.a = Math.atan2(player.y - en.y, player.x - en.x);
-            let spd = 1.5 + (diff * 0.6);
-            let vx = (player.x-en.x)/dist * spd, vy = (player.y-en.y)/dist * spd;
-            if(!checkCollision(en.x + vx, en.y + vy, 15)) { en.x += vx; en.y += vy; }
-            if(dist < 500 && Date.now() - en.lastS > 1900/diff) {
-                eB.push({x: en.x, y: en.y, vx: Math.cos(en.a)*9, vy: Math.sin(en.a)*9, dead: false});
-                en.lastS = Date.now();
-            }
-        });
-
-        pB.forEach(b => {
-            b.x += b.vx; b.y += b.vy;
-            enemies.forEach(en => {
-                if(Math.hypot(b.x-en.x, b.y-en.y) < 25) { en.hp -= 20; b.dead = true; if(en.hp <= 0) { stats.money += 10; xp = Math.min(100, xp+5); } }
-            });
-            if(b.x < 0 || b.x > worldSize || b.y < 0 || b.y > worldSize) b.dead = true;
-        });
-        pB = pB.filter(b => !b.dead);
-        enemies = enemies.filter(en => en.hp > 0);
-
-        eB.forEach(eb => {
-            eb.x += eb.vx; eb.y += eb.vy;
-            if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) { player.hp -= 7 * diff; player.hit = 10; eb.dead = true; }
-            if(eb.x < 0 || eb.x > worldSize || eb.y < 0 || eb.y > worldSize) eb.dead = true;
-        });
-        eB = eB.filter(eb => !eb.dead);
-
-        if(player.hp <= 0) { gameActive = false; document.getElementById('go-screen').classList.remove('hidden'); }
-        
-        draw(); 
-        requestAnimationFrame(loop);
+    function isColliding(nx, ny, r) {
+        if(nx < r || nx > worldSize-r || ny < r || ny > worldSize-r) return true;
+        for(let o of obstacles) if(nx + r > o.x && nx - r < o.x + o.w && ny + r > o.y && ny - r < o.y + o.h) return true;
+        return false;
     }
 
     function draw() {
-        const config = mapConfigs[curMap], sw = window.innerWidth, sh = window.innerHeight;
-        ctx.clearRect(0, 0, sw, sh);
-        
-        ctx.save();
-        // ИСПРАВЛЕННАЯ КАМЕРА: (Центр экрана) - (Координата игрока)
-        ctx.translate(sw/2 - player.x, sh/2 - player.y);
-        
-        // Фон
-        ctx.fillStyle = config.bg; ctx.fillRect(0, 0, worldSize, worldSize);
-        ctx.strokeStyle = config.wall; ctx.lineWidth = 15; ctx.strokeRect(0, 0, worldSize, worldSize);
-        
-        obstacles.forEach(o => { ctx.fillStyle = o.c; ctx.fillRect(o.x, o.y, o.w, o.h); });
-
-        // Игрок
-        drawWeapon(player.x, player.y, joyR.active ? joyR.a : 0);
-        ctx.fillStyle = player.hit > 0 ? "#fff" : "#00008B";
-        if(player.hit > 0) player.hit--;
-        ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
-        
-        // Боты
-        enemies.forEach(en => {
-            drawWeapon(en.x, en.y, en.a);
-            ctx.fillStyle = "#f0f"; ctx.beginPath(); ctx.arc(en.x, en.y, 16, 0, Math.PI*2); ctx.fill();
-        });
-
-        // Пули
-        ctx.fillStyle = "#ff0"; pB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI*2); ctx.fill(); });
-        ctx.fillStyle = "#f00"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI*2); ctx.fill(); });
-        ctx.restore();
-        
-        // UI
-        let rS = 100, rP = 20, s = rS / worldSize, rY = sh - rS - rP;
-        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(rP, rY, rS, rS);
-        ctx.strokeStyle = "#0ff"; ctx.strokeRect(rP, rY, rS, rS);
-        ctx.fillStyle = "#0ff"; ctx.fillRect(rP + player.x*s - 2, rY + player.y*s - 2, 4, 4);
-
-        if(joyL.active) drawJ(joyL.sx, joyL.sy, joyL.x, joyL.y);
-        if(joyR.active) drawJ(joyR.sx, joyR.sy, joyR.x, joyR.y);
-
-        document.getElementById('h-v').innerText = Math.max(0, Math.ceil(player.hp));
-        document.getElementById('m-v').innerText = stats.money;
-        document.getElementById('xp-fill').style.width = xp + "%";
+        if (!gameActive) return;
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.fillStyle = "#111"; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(!isPaused) {
+            ctx.translate(canvas.width/2, canvas.height/2);
+            ctx.scale(zoom, zoom); ctx.translate(-player.x, -player.y);
+            ctx.fillStyle = "#bd9f7a"; ctx.fillRect(0,0,worldSize,worldSize);
+            ctx.fillStyle = "#705b44"; obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+            bullets.forEach(b => { ctx.fillStyle = weapons[player.weaponIdx].color; ctx.beginPath(); ctx.arc(b.x, b.y, 7, 0, Math.PI*2); ctx.fill(); });
+            ctx.fillStyle = "#f33"; eBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI*2); ctx.fill(); });
+            enemies.forEach(e => {
+                ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(player.y-e.y, player.x-e.x));
+                ctx.fillStyle = "#333"; ctx.fillRect(15, -5, 25, 10); ctx.restore();
+                ctx.fillStyle = "#8e44ad"; ctx.beginPath(); ctx.arc(e.x, e.y, 22, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(joyR.a);
+            ctx.fillStyle = "#000"; ctx.fillRect(20, -7, 35, 14); ctx.restore();
+            ctx.fillStyle = "#2c3e50"; ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+            ctx.setTransform(1,0,0,1,0,0);
+            if (joyL.active) drawJ(joyL); if (joyR.active) drawJ(joyR);
+            drawRadar(); updateUI();
+        }
+        requestAnimationFrame(draw);
     }
 
-    function drawJ(sx, sy, x, y) { 
-        ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=2; 
-        ctx.beginPath(); ctx.arc(sx, sy, 40, 0, Math.PI*2); ctx.stroke(); 
-        ctx.beginPath(); ctx.arc(sx+x, sy+y, 15, 0, Math.PI*2); ctx.stroke(); 
+    function drawJ(j) {
+        ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.beginPath(); ctx.arc(j.sx, j.sy, 55, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(j.sx+j.x, j.sy+j.y, 20, 0, Math.PI*2); ctx.stroke();
+    }
+
+    function drawRadar() {
+        rCtx.clearRect(0,0,100,100);
+        enemies.forEach(e => {
+            let rx = 50 + (e.x - player.x)/50; let ry = 50 + (e.y - player.y)/50;
+            if(Math.hypot(rx-50, ry-50) < 48) { rCtx.fillStyle = "red"; rCtx.beginPath(); rCtx.arc(rx, ry, 3, 0, Math.PI*2); rCtx.fill(); }
+        });
+        rCtx.fillStyle = "#fff"; rCtx.beginPath(); rCtx.arc(50, 50, 4, 0, Math.PI*2); rCtx.fill();
+    }
+
+    function updateUI() {
+        document.getElementById('h-v').innerText = Math.ceil(player.hp);
+        document.getElementById('m-v').innerText = money;
+        document.getElementById('l-v').innerText = level;
+        document.getElementById('xp-fill').style.width = xp + "%";
+        document.getElementById('cur-w-name').innerText = weapons[player.weaponIdx].n;
+    }
+
+    function gameLoop() {
+        if (!gameActive || isPaused) { setTimeout(gameLoop, 16); return; }
+        if (joyL.active) {
+            let d = Math.hypot(joyL.x, joyL.y);
+            let vx = (joyL.x/d)*8, vy = (joyL.y/d)*8;
+            if(!isColliding(player.x + vx, player.y, player.r)) player.x += vx;
+            if(!isColliding(player.x, player.y + vy, player.r)) player.y += vy;
+        }
+        const curW = weapons[player.weaponIdx];
+        if (joyR.active && Date.now() - player.lastS > curW.spd) {
+            bullets.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*18, vy: Math.sin(joyR.a)*18, dmg: curW.dmg});
+            player.lastS = Date.now(); playShootSound('player');
+        }
+        bullets.forEach((b, i) => { b.x += b.vx; b.y += b.vy; if(isColliding(b.x, b.y, 5)) bullets.splice(i,1); });
+        eBullets.forEach((b, i) => { 
+            b.x += b.vx; b.y += b.vy; 
+            if(Math.hypot(b.x-player.x, b.y-player.y) < player.r) { player.hp -= (8 + level); eBullets.splice(i,1); }
+            if(isColliding(b.x, b.y, 5)) eBullets.splice(i,1); 
+        });
+        if (Math.random() < (0.01 + level*0.002) && enemies.length < 15) {
+            let sx = Math.random()*worldSize, sy = Math.random()*worldSize;
+            if(!isColliding(sx, sy, 30)) enemies.push({x: sx, y: sy, hp: 50+(level*15), lastShot: 0});
+        }
+        enemies.forEach((e, i) => {
+            let dist = Math.hypot(player.x - e.x, player.y - e.y);
+            if(dist > 250) {
+                let evx = (player.x - e.x)/dist * (4 + level/2), evy = (player.y - e.y)/dist * (4 + level/2);
+                if(!isColliding(e.x + evx, e.y, 22)) e.x += evx;
+                if(!isColliding(e.x, e.y + evy, 22)) e.y += evy;
+            } else if (Date.now() - e.lastShot > 1400) {
+                let ang = Math.atan2(player.y-e.y, player.x-e.x);
+                eBullets.push({x: e.x, y: e.y, vx: Math.cos(ang)*11, vy: Math.sin(ang)*11});
+                e.lastShot = Date.now(); playShootSound('enemy');
+            }
+            bullets.forEach((b, bi) => {
+                if(Math.hypot(b.x-e.x, b.y-e.y) < 28) { 
+                    e.hp -= b.dmg; bullets.splice(bi,1); 
+                    if(e.hp<=0) { enemies.splice(i,1); money+=20; xp+=25; if(xp>=100){xp=0; level++; player.hp=player.maxHp;} }
+                }
+            });
+        });
+        if(player.hp <= 0) location.reload();
+        setTimeout(gameLoop, 16);
     }
 
     window.addEventListener('touchstart', e => {
+        audioCtx.resume();
         for(let t of e.changedTouches) {
+            if(isPaused) return;
             if(t.clientX < window.innerWidth/2 && joyL.id === -1) { joyL.active=true; joyL.sx=t.clientX; joyL.sy=t.clientY; joyL.id=t.identifier; }
-            else if(joyR.id===-1) { joyR.active=true; joyR.sx=t.clientX; joyR.sy=t.clientY; joyR.id=t.identifier; }
+            else if(joyR.id === -1) { joyR.active=true; joyR.sx=t.clientX; joyR.sy=t.clientY; joyR.id=t.identifier; }
         }
     });
-    window.addEventListener('touchmove', e => { 
-        for(let t of e.changedTouches) { 
-            if(t.identifier===joyL.id) { let dx=t.clientX-joyL.sx, dy=t.clientY-joyL.sy, d=Math.min(40, Math.hypot(dx,dy)); joyL.x=(dx/Math.hypot(dx,dy))*d; joyL.y=(dy/Math.hypot(dx,dy))*d; } 
-            if(t.identifier===joyR.id) { let dx=t.clientX-joyR.sx, dy=t.clientY-joyR.sy, d=Math.min(40, Math.hypot(dx,dy)); joyR.x=(dx/Math.hypot(dx,dy))*d; joyR.y=(dy/Math.hypot(dx,dy))*d; joyR.a=Math.atan2(dy, dx); } 
-        } 
+    window.addEventListener('touchmove', e => {
+        for(let t of e.changedTouches) {
+            if(t.identifier === joyL.id) { let d = Math.hypot(t.clientX-joyL.sx, t.clientY-joyL.sy); let lim = Math.min(d, 50); joyL.x=(t.clientX-joyL.sx)/d*lim; joyL.y=(t.clientY-joyL.sy)/d*lim; }
+            if(t.identifier === joyR.id) { let d = Math.hypot(t.clientX-joyR.sx, t.clientY-joyR.sy); let lim = Math.min(d, 50); joyR.x=(t.clientX-joyR.sx)/d*lim; joyR.y=(t.clientY-joyR.sy)/d*lim; joyR.a=Math.atan2(joyR.y, joyR.x); }
+        }
     });
-    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; joyL.x=0; joyL.y=0; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; joyR.x=0; joyR.y=0; } } });
+    window.addEventListener('touchend', e => {
+        for(let t of e.changedTouches) { if(t.identifier === joyL.id) { joyL.active=false; joyL.id=-1; } if(t.identifier === joyR.id) { joyR.active=false; joyR.id=-1; } }
+    });
 
-    document.getElementById('start-btn').onclick = () => { 
-        document.getElementById('m-screen').classList.add('hidden'); 
+    document.getElementById('start-btn').onclick = () => {
+        document.getElementById('m-screen').classList.add('hidden');
         document.getElementById('ui-layer').classList.remove('hidden');
-        fixCanvas(); generateMap(); gameActive = true; loop(); 
+        document.getElementById('radar').classList.remove('hidden');
+        generateObstacles(); canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+        gameActive = true; draw(); gameLoop();
     };
 </script>
 </body>
