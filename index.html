@@ -2,26 +2,23 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crystal Battle: Fullscreen Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Crystal Battle: Bullet Fix</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; user-select: none; touch-action: none; color: #0ff; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        #orientation-lock { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        @media screen and (orientation: portrait) { #orientation-lock { display: flex; } }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); z-index: 100; text-align: center; }
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; position: fixed; }
+        canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); z-index: 100; text-align: center; color: #0ff; font-family: sans-serif; }
         .hidden { display: none !important; }
-        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 10px 20px; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 5px; font-weight: bold; }
-        button:active, button.active { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
-        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; }
-        #xp-bar { width: 150px; height: 10px; border: 1px solid #0ff; background: rgba(0,255,255,0.1); margin-top: 5px; }
-        #xp-fill { width: 0%; height: 100%; background: #f0f; transition: width 0.3s; }
-        .sig { position: absolute; bottom: 10px; right: 10px; color: rgba(0,255,255,0.4); font-size: 12px; z-index: 10; }
+        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 12px 24px; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 8px; font-weight: bold; }
+        button:active, button.active { background: #0ff; color: #000; }
+        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; font-family: monospace; color: #0ff; }
+        #xp-bar { width: 140px; height: 8px; border: 1px solid #0ff; background: rgba(0,255,255,0.1); margin-top: 4px; }
+        #xp-fill { width: 0%; height: 100%; background: #f0f; }
+        .sig { position: absolute; bottom: 8px; right: 8px; color: rgba(0,255,255,0.3); font-size: 11px; z-index: 60; }
     </style>
 </head>
 <body>
-
-<div id="orientation-lock"><h2>🔄 ПЕРЕВЕРНИ ЭКРАН</h2></div>
 
 <div id="ui-layer" class="hidden">
     <div>HP: <span id="h-v">100</span> | 💎: <span id="m-v">0</span></div>
@@ -29,21 +26,19 @@
 </div>
 
 <div id="m-screen" class="screen">
-    <h1 style="text-shadow: 0 0 20px #0ff;">CRYSTAL BATTLE</h1>
-    <p>ЛОКАЦИЯ:</p>
-    <div id="map-select" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;"></div>
-    <p>СЛОЖНОСТЬ:</p>
+    <h1 style="margin-bottom: 20px;">CRYSTAL BATTLE</h1>
+    <div id="map-select" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;"></div>
     <div id="diff-select">
         <button class="d-btn active" data-d="1">EASY</button>
-        <button class="d-btn" data-d="2">MEDIUM</button>
+        <button class="d-btn" data-d="2">NORM</button>
         <button class="d-btn" data-d="3">HARD</button>
     </div>
-    <button id="start-btn" style="font-size: 1.5em; border-color: #f0f; margin-top:30px; color: #f0f;">В БОЙ</button>
+    <button id="start-btn" style="font-size: 1.4em; border-color: #f0f; color: #f0f; margin-top: 25px;">СТАРТ</button>
 </div>
 
 <div id="go-screen" class="screen hidden">
-    <h1 style="color:red; font-size: 3em;">ТЫ ПОГИБ</h1>
-    <button onclick="location.reload()" style="font-size: 1.2em;">В МЕНЮ</button>
+    <h1 style="color:red;">GAME OVER</h1>
+    <button onclick="location.reload()">В МЕНЮ</button>
 </div>
 
 <div class="sig">by Кирилл Пьяничук</div>
@@ -52,17 +47,18 @@
 <script>
     const canvas = document.getElementById('gC'), ctx = canvas.getContext('2d');
     
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    function fixCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    window.addEventListener('resize', resize);
-    window.addEventListener('load', resize);
-    resize();
+    window.addEventListener('resize', fixCanvas);
+    fixCanvas();
 
     let stats = { money: 0 };
-    let gameActive = false, score = 0, xp = 0, diff = 1, curMap = 0;
-    let player = { x: 1250, y: 1250, hp: 100, r: 15, lastS: 0, hit: 0 };
+    let gameActive = false, xp = 0, diff = 1, curMap = 0;
+    let player = { x: 1250, y: 1250, hp: 100, r: 16, lastS: 0, hit: 0 };
     let enemies = [], pB = [], eB = [], obstacles = [], worldSize = 2500;
     let joyL = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1 };
     let joyR = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1, a: 0 };
@@ -75,29 +71,27 @@
         { n: "NUKE", bg: "#7f8c8d", wall: "#2c3e50", obj: "#95a5a6" }
     ];
 
-    function drawWeapon(x, y, angle, color, len = 25, thickness = 8) {
+    function drawWeapon(x, y, angle) {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        ctx.fillStyle = color;
-        ctx.fillRect(5, -thickness/2, len, thickness);
-        ctx.fillStyle = "#111";
-        ctx.fillRect(-5, -thickness/2, 10, thickness);
+        ctx.fillStyle = "#444"; ctx.fillRect(10, -4, 22, 8);
+        ctx.fillStyle = "#000"; ctx.fillRect(-4, -6, 16, 12);
         ctx.restore();
     }
 
     function generateMap() {
         obstacles = [];
         const config = mapConfigs[curMap];
-        for(let i=0; i<45; i++) {
+        for(let i=0; i<40; i++) {
             let obj = {
-                x: Math.random() * (worldSize - 300) + 150,
-                y: Math.random() * (worldSize - 300) + 150,
-                w: 70 + Math.random() * 120,
-                h: 70 + Math.random() * 120,
+                x: Math.random() * (worldSize - 400) + 200,
+                y: Math.random() * (worldSize - 400) + 200,
+                w: 100 + Math.random() * 100,
+                h: 100 + Math.random() * 100,
                 c: config.obj
             };
-            if(Math.hypot(obj.x - 1250, obj.y - 1250) > 300) obstacles.push(obj);
+            if(Math.hypot(obj.x - 1250, obj.y - 1250) > 350) obstacles.push(obj);
         }
     }
 
@@ -122,121 +116,142 @@
     function loop() {
         if(!gameActive) return;
         
+        // Движение игрока
         if(joyL.active) {
-            let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*6.5, vy = (joyL.y/d)*6.5;
+            let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*7, vy = (joyL.y/d)*7;
             if(!checkCollision(player.x + vx, player.y, player.r)) player.x += vx;
             if(!checkCollision(player.x, player.y + vy, player.r)) player.y += vy;
         }
 
-        if(joyR.active && Date.now() - player.lastS > 300) {
-            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*16, vy: Math.sin(joyR.a)*16});
+        // Стрельба игрока
+        if(joyR.active && Date.now() - player.lastS > 250) {
+            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*18, vy: Math.sin(joyR.a)*18});
             player.lastS = Date.now();
         }
         
-        let maxBots = [0, 3, 5, 10][diff];
-        if(enemies.length < maxBots && Math.random() < 0.02) {
+        // Спавн ботов
+        let maxBots = [0, 4, 7, 12][diff];
+        if(enemies.length < maxBots && Math.random() < 0.03) {
             let rx = Math.random()*worldSize, ry = Math.random()*worldSize;
-            if(!checkCollision(rx, ry, 20) && Math.hypot(rx-player.x, ry-player.y) > 400) {
+            if(!checkCollision(rx, ry, 20) && Math.hypot(rx-player.x, ry-player.y) > 500) {
                 enemies.push({x: rx, y: ry, hp: 60, lastS: 0, a: 0});
             }
         }
 
+        // Логика ботов
         enemies.forEach((en, i) => {
             let dist = Math.hypot(player.x-en.x, player.y-en.y);
             en.a = Math.atan2(player.y - en.y, player.x - en.x);
-            let vx = (player.x-en.x)/dist * (2 + diff), vy = (player.y-en.y)/dist * (2 + diff);
+            let spd = 2 + diff;
+            let vx = (player.x-en.x)/dist * spd, vy = (player.y-en.y)/dist * spd;
             if(!checkCollision(en.x + vx, en.y + vy, 15)) { en.x += vx; en.y += vy; }
-            if(dist < 450 && Date.now() - en.lastS > 2200/diff) {
-                eB.push({x: en.x, y: en.y, vx: Math.cos(en.a)*9, vy: Math.sin(en.a)*9});
+            if(dist < 500 && Date.now() - en.lastS > 1800/diff) {
+                eB.push({x: en.x, y: en.y, vx: Math.cos(en.a)*10, vy: Math.sin(en.a)*10});
                 en.lastS = Date.now();
             }
         });
 
-        [pB, eB].forEach(bullets => {
-            for(let i = bullets.length-1; i>=0; i--) {
-                let b = bullets[i]; b.x += b.vx; b.y += b.vy;
-                if(checkCollision(b.x, b.y, 3)) bullets.splice(i, 1);
-            }
-        });
-
-        pB.forEach((b, bi) => {
-            enemies.forEach((en, ei) => {
+        // Движение пуль игрока и попадания
+        for(let i = pB.length - 1; i >= 0; i--) {
+            let b = pB[i];
+            b.x += b.vx; b.y += b.vy;
+            
+            let hit = false;
+            for(let j = enemies.length - 1; j >= 0; j--) {
+                let en = enemies[j];
                 if(Math.hypot(b.x-en.x, b.y-en.y) < 25) {
-                    en.hp -= 20; pB.splice(bi, 1);
-                    if(en.hp <= 0) { enemies.splice(ei, 1); stats.money += 10; xp = Math.min(100, xp+10); }
+                    en.hp -= 20; hit = true;
+                    if(en.hp <= 0) { enemies.splice(j, 1); stats.money += 10; xp = Math.min(100, xp+10); }
+                    break;
                 }
-            });
-        });
-
-        eB.forEach((eb, i) => {
-            if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) {
-                player.hp -= 8 * diff; player.hit = 10; eB.splice(i, 1);
             }
-        });
+            if(hit || b.x < 0 || b.x > worldSize || b.y < 0 || b.y > worldSize) pB.splice(i, 1);
+        }
+
+        // ИСПРАВЛЕННОЕ: Движение пуль ботов и урон игроку
+        for(let i = eB.length - 1; i >= 0; i--) {
+            let eb = eB[i];
+            eb.x += eb.vx; eb.y += eb.vy; // Теперь пули двигаются!
+            
+            if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) {
+                player.hp -= 10 * diff; player.hit = 10; eB.splice(i, 1);
+            } else if(eb.x < 0 || eb.x > worldSize || eb.y < 0 || eb.y > worldSize) {
+                eB.splice(i, 1);
+            }
+        }
 
         if(player.hp <= 0) { gameActive = false; document.getElementById('go-screen').classList.remove('hidden'); }
         
-        draw(); requestAnimationFrame(loop);
+        draw(); 
+        requestAnimationFrame(loop);
     }
 
     function draw() {
         const config = mapConfigs[curMap];
-        ctx.fillStyle = config.bg; ctx.fillRect(0,0,canvas.width, canvas.height);
+        const sw = window.innerWidth, sh = window.innerHeight;
+
+        ctx.fillStyle = config.bg;
+        ctx.fillRect(0, 0, sw, sh);
         
         ctx.save();
-        ctx.translate(-player.x + canvas.width/2, -player.y + canvas.height/2);
+        ctx.translate(-player.x + sw/2, -player.y + sh/2);
         
-        ctx.strokeStyle = config.wall; ctx.lineWidth = 15; ctx.strokeRect(0, 0, worldSize, worldSize);
-        obstacles.forEach(o => { 
-            ctx.fillStyle = o.c; ctx.fillRect(o.x, o.y, o.w, o.h); 
-            ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 2; ctx.strokeRect(o.x, o.y, o.w, o.h);
-        });
+        ctx.strokeStyle = config.wall; ctx.lineWidth = 20; ctx.strokeRect(0, 0, worldSize, worldSize);
+        obstacles.forEach(o => { ctx.fillStyle = o.c; ctx.fillRect(o.x, o.y, o.w, o.h); });
 
-        ctx.fillStyle = player.hit > 0 ? "white" : "#0ff"; if(player.hit > 0) player.hit--;
+        // Игрок и Оружие
+        drawWeapon(player.x, player.y, joyR.active ? joyR.a : 0);
+        ctx.fillStyle = player.hit > 0 ? "#fff" : "#00008B";
+        if(player.hit > 0) player.hit--;
         ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
-        drawWeapon(player.x, player.y, joyR.a, "#444");
-
+        
+        // Боты и их Оружие
         enemies.forEach(en => {
-            ctx.fillStyle = "#f0f"; ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI*2); ctx.fill();
-            drawWeapon(en.x, en.y, en.a, "#333", 22, 7); 
+            drawWeapon(en.x, en.y, en.a);
+            ctx.fillStyle = "#f0f"; ctx.beginPath(); ctx.arc(en.x, en.y, 16, 0, Math.PI*2); ctx.fill();
         });
 
+        // Отрисовка всех пуль
         ctx.fillStyle = "#ff0"; pB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
         ctx.fillStyle = "#f00"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
         ctx.restore();
         
-        let rS = 120, rP = 20, s = rS / worldSize;
-        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(rP, canvas.height-rS-rP, rS, rS);
-        ctx.strokeStyle = "#0ff"; ctx.strokeRect(rP, canvas.height-rS-rP, rS, rS);
-        ctx.fillStyle = "#0ff"; ctx.fillRect(rP + player.x*s-2, canvas.height-rS-rP + player.y*s-2, 4, 4);
-        ctx.fillStyle = "#f0f"; enemies.forEach(en => ctx.fillRect(rP + en.x*s-1, canvas.height-rS-rP + en.y*s-1, 3, 3));
+        // РАДАР
+        let rS = 130, rP = 20, s = rS / worldSize;
+        let rY = sh - rS - rP;
+        ctx.fillStyle = "rgba(0,0,0,0.7)"; 
+        ctx.fillRect(rP, rY, rS, rS);
+        ctx.strokeStyle = "#0ff"; ctx.lineWidth = 2; ctx.strokeRect(rP, rY, rS, rS);
+        ctx.fillStyle = "#00008B"; ctx.fillRect(rP + player.x*s - 2, rY + player.y*s - 2, 4, 4);
+        ctx.fillStyle = "#f0f"; enemies.forEach(en => ctx.fillRect(rP + en.x*s - 1.5, rY + en.y*s - 1.5, 3, 3));
 
         if(joyL.active) drawJ(joyL.sx, joyL.sy, joyL.x, joyL.y);
         if(joyR.active) drawJ(joyR.sx, joyR.sy, joyR.x, joyR.y);
-        
+
         document.getElementById('h-v').innerText = Math.max(0, Math.ceil(player.hp));
         document.getElementById('m-v').innerText = stats.money;
         document.getElementById('xp-fill').style.width = xp + "%";
     }
 
-    function drawJ(sx, sy, x, y) { ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx, sy, 55, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx+x, sy+y, 25, 0, Math.PI*2); ctx.stroke(); }
+    function drawJ(sx, sy, x, y) { ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx, sy, 50, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx+x, sy+y, 20, 0, Math.PI*2); ctx.stroke(); }
 
     window.addEventListener('touchstart', e => {
         for(let t of e.changedTouches) {
-            if(t.clientX < canvas.width/2 && joyL.id === -1) { joyL.active=true; joyL.sx=t.clientX; joyL.sy=t.clientY; joyL.id=t.identifier; }
+            if(t.clientX < window.innerWidth/2 && joyL.id === -1) { joyL.active=true; joyL.sx=t.clientX; joyL.sy=t.clientY; joyL.id=t.identifier; }
             else if(joyR.id===-1) { joyR.active=true; joyR.sx=t.clientX; joyR.sy=t.clientY; joyR.id=t.identifier; }
         }
-    }, {passive: false});
+    });
     window.addEventListener('touchmove', e => { 
+        e.preventDefault();
         for(let t of e.changedTouches) { 
             if(t.identifier===joyL.id) { let dx=t.clientX-joyL.sx, dy=t.clientY-joyL.sy, d=Math.min(50, Math.hypot(dx,dy)); joyL.x=(dx/Math.hypot(dx,dy))*d; joyL.y=(dy/Math.hypot(dx,dy))*d; } 
             if(t.identifier===joyR.id) { let dx=t.clientX-joyR.sx, dy=t.clientY-joyR.sy, d=Math.min(50, Math.hypot(dx,dy)); joyR.x=(dx/Math.hypot(dx,dy))*d; joyR.y=(dy/Math.hypot(dx,dy))*d; joyR.a=Math.atan2(dy, dx); } 
         } 
     }, {passive: false});
-    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; joyL.x=0; joyL.y=0; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; joyR.x=0; joyR.y=0; } } });
+    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; } } });
 
     document.getElementById('start-btn').onclick = () => { 
-        resize(); // Принудительный ресайз при старте
+        fixCanvas();
         generateMap();
         document.getElementById('m-screen').classList.add('hidden'); 
         document.getElementById('ui-layer').classList.remove('hidden');
