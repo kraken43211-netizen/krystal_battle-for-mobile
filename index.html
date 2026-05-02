@@ -3,16 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Crystal Battle: Bullet Fix</title>
+    <title>Crystal Battle: UI & Bullet Fix</title>
     <style>
-        * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; position: fixed; }
+        * { box-sizing: border-box; touch-action: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; position: fixed; font-family: sans-serif; }
         canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); z-index: 100; text-align: center; color: #0ff; font-family: sans-serif; }
+        
+        .screen { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: rgba(0,0,0,0.95); z-index: 100; color: #0ff; overflow-y: auto; padding: 20px;
+        }
+        
         .hidden { display: none !important; }
-        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 12px 24px; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 8px; font-weight: bold; }
+        
+        button { 
+            background: transparent; border: 2px solid #0ff; color: #0ff; 
+            padding: 10px 15px; margin: 4px; cursor: pointer; 
+            text-transform: uppercase; border-radius: 8px; font-weight: bold; font-size: 14px;
+        }
         button:active, button.active { background: #0ff; color: #000; }
-        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; font-family: monospace; color: #0ff; }
+        
+        #map-select { 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px; 
+            max-height: 150px; overflow-y: auto; margin-bottom: 15px; width: 100%; max-width: 300px;
+        }
+        
+        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; color: #0ff; font-family: monospace; }
         #xp-bar { width: 140px; height: 8px; border: 1px solid #0ff; background: rgba(0,255,255,0.1); margin-top: 4px; }
         #xp-fill { width: 0%; height: 100%; background: #f0f; }
         .sig { position: absolute; bottom: 8px; right: 8px; color: rgba(0,255,255,0.3); font-size: 11px; z-index: 60; }
@@ -26,14 +43,16 @@
 </div>
 
 <div id="m-screen" class="screen">
-    <h1 style="margin-bottom: 20px;">CRYSTAL BATTLE</h1>
-    <div id="map-select" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;"></div>
+    <h2 style="margin: 0 0 15px 0; letter-spacing: 2px;">CRYSTAL BATTLE</h2>
+    <p style="margin: 0 0 5px 0; font-size: 12px;">ВЫБЕРИТЕ КАРТУ:</p>
+    <div id="map-select"></div>
+    <p style="margin: 10px 0 5px 0; font-size: 12px;">СЛОЖНОСТЬ:</p>
     <div id="diff-select">
         <button class="d-btn active" data-d="1">EASY</button>
         <button class="d-btn" data-d="2">NORM</button>
         <button class="d-btn" data-d="3">HARD</button>
     </div>
-    <button id="start-btn" style="font-size: 1.4em; border-color: #f0f; color: #f0f; margin-top: 25px;">СТАРТ</button>
+    <button id="start-btn" style="font-size: 1.2em; border-color: #f0f; color: #f0f; margin-top: 20px; width: 200px;">СТАРТ</button>
 </div>
 
 <div id="go-screen" class="screen hidden">
@@ -46,18 +65,7 @@
 
 <script>
     const canvas = document.getElementById('gC'), ctx = canvas.getContext('2d');
-    
-    function fixCanvas() {
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = window.innerWidth * dpr;
-        canvas.height = window.innerHeight * dpr;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    window.addEventListener('resize', fixCanvas);
-    fixCanvas();
-
-    let stats = { money: 0 };
-    let gameActive = false, xp = 0, diff = 1, curMap = 0;
+    let stats = { money: 0 }, gameActive = false, xp = 0, diff = 1, curMap = 0;
     let player = { x: 1250, y: 1250, hp: 100, r: 16, lastS: 0, hit: 0 };
     let enemies = [], pB = [], eB = [], obstacles = [], worldSize = 2500;
     let joyL = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1 };
@@ -70,6 +78,15 @@
         { n: "INFERNO", bg: "#4d3a2b", wall: "#2d1f14", obj: "#a0522d" },
         { n: "NUKE", bg: "#7f8c8d", wall: "#2c3e50", obj: "#95a5a6" }
     ];
+
+    function fixCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', fixCanvas);
+    fixCanvas();
 
     function drawWeapon(x, y, angle) {
         ctx.save();
@@ -116,20 +133,20 @@
     function loop() {
         if(!gameActive) return;
         
-        // Движение игрока
+        // 1. Движение игрока
         if(joyL.active) {
             let d = Math.hypot(joyL.x, joyL.y), vx = (joyL.x/d)*7, vy = (joyL.y/d)*7;
             if(!checkCollision(player.x + vx, player.y, player.r)) player.x += vx;
             if(!checkCollision(player.x, player.y + vy, player.r)) player.y += vy;
         }
 
-        // Стрельба игрока
+        // 2. Стрельба игрока
         if(joyR.active && Date.now() - player.lastS > 250) {
             pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*18, vy: Math.sin(joyR.a)*18});
             player.lastS = Date.now();
         }
         
-        // Спавн ботов
+        // 3. Логика ботов
         let maxBots = [0, 4, 7, 12][diff];
         if(enemies.length < maxBots && Math.random() < 0.03) {
             let rx = Math.random()*worldSize, ry = Math.random()*worldSize;
@@ -138,7 +155,6 @@
             }
         }
 
-        // Логика ботов
         enemies.forEach((en, i) => {
             let dist = Math.hypot(player.x-en.x, player.y-en.y);
             en.a = Math.atan2(player.y - en.y, player.x - en.x);
@@ -151,34 +167,27 @@
             }
         });
 
-        // Движение пуль игрока и попадания
-        for(let i = pB.length - 1; i >= 0; i--) {
-            let b = pB[i];
+        // 4. Движение ПУЛЬ и Коллизии
+        pB.forEach((b, index) => {
             b.x += b.vx; b.y += b.vy;
-            
-            let hit = false;
-            for(let j = enemies.length - 1; j >= 0; j--) {
-                let en = enemies[j];
+            enemies.forEach((en, ei) => {
                 if(Math.hypot(b.x-en.x, b.y-en.y) < 25) {
-                    en.hp -= 20; hit = true;
-                    if(en.hp <= 0) { enemies.splice(j, 1); stats.money += 10; xp = Math.min(100, xp+10); }
-                    break;
+                    en.hp -= 20; b.dead = true;
+                    if(en.hp <= 0) { enemies.splice(ei, 1); stats.money += 10; xp = Math.min(100, xp+10); }
                 }
-            }
-            if(hit || b.x < 0 || b.x > worldSize || b.y < 0 || b.y > worldSize) pB.splice(i, 1);
-        }
+            });
+            if(b.x < 0 || b.x > worldSize || b.y < 0 || b.y > worldSize) b.dead = true;
+        });
+        pB = pB.filter(b => !b.dead);
 
-        // ИСПРАВЛЕННОЕ: Движение пуль ботов и урон игроку
-        for(let i = eB.length - 1; i >= 0; i--) {
-            let eb = eB[i];
-            eb.x += eb.vx; eb.y += eb.vy; // Теперь пули двигаются!
-            
+        eB.forEach((eb, index) => {
+            eb.x += eb.vx; eb.y += eb.vy; // Движение пуль ботов
             if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) {
-                player.hp -= 10 * diff; player.hit = 10; eB.splice(i, 1);
-            } else if(eb.x < 0 || eb.x > worldSize || eb.y < 0 || eb.y > worldSize) {
-                eB.splice(i, 1);
+                player.hp -= 10 * diff; player.hit = 10; eb.dead = true;
             }
-        }
+            if(eb.x < 0 || eb.x > worldSize || eb.y < 0 || eb.y > worldSize) eb.dead = true;
+        });
+        eB = eB.filter(eb => !eb.dead);
 
         if(player.hp <= 0) { gameActive = false; document.getElementById('go-screen').classList.remove('hidden'); }
         
@@ -187,43 +196,36 @@
     }
 
     function draw() {
-        const config = mapConfigs[curMap];
-        const sw = window.innerWidth, sh = window.innerHeight;
-
-        ctx.fillStyle = config.bg;
-        ctx.fillRect(0, 0, sw, sh);
+        const config = mapConfigs[curMap], sw = window.innerWidth, sh = window.innerHeight;
+        ctx.fillStyle = config.bg; ctx.fillRect(0, 0, sw, sh);
         
         ctx.save();
         ctx.translate(-player.x + sw/2, -player.y + sh/2);
-        
         ctx.strokeStyle = config.wall; ctx.lineWidth = 20; ctx.strokeRect(0, 0, worldSize, worldSize);
         obstacles.forEach(o => { ctx.fillStyle = o.c; ctx.fillRect(o.x, o.y, o.w, o.h); });
 
-        // Игрок и Оружие
+        // Игрок (Темно-синий)
         drawWeapon(player.x, player.y, joyR.active ? joyR.a : 0);
         ctx.fillStyle = player.hit > 0 ? "#fff" : "#00008B";
         if(player.hit > 0) player.hit--;
         ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
         
-        // Боты и их Оружие
+        // Боты
         enemies.forEach(en => {
             drawWeapon(en.x, en.y, en.a);
             ctx.fillStyle = "#f0f"; ctx.beginPath(); ctx.arc(en.x, en.y, 16, 0, Math.PI*2); ctx.fill();
         });
 
-        // Отрисовка всех пуль
+        // Пули
         ctx.fillStyle = "#ff0"; pB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
         ctx.fillStyle = "#f00"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
         ctx.restore();
         
-        // РАДАР
-        let rS = 130, rP = 20, s = rS / worldSize;
-        let rY = sh - rS - rP;
-        ctx.fillStyle = "rgba(0,0,0,0.7)"; 
-        ctx.fillRect(rP, rY, rS, rS);
-        ctx.strokeStyle = "#0ff"; ctx.lineWidth = 2; ctx.strokeRect(rP, rY, rS, rS);
+        // Радар
+        let rS = 100, rP = 20, s = rS / worldSize, rY = sh - rS - rP;
+        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(rP, rY, rS, rS);
+        ctx.strokeStyle = "#0ff"; ctx.strokeRect(rP, rY, rS, rS);
         ctx.fillStyle = "#00008B"; ctx.fillRect(rP + player.x*s - 2, rY + player.y*s - 2, 4, 4);
-        ctx.fillStyle = "#f0f"; enemies.forEach(en => ctx.fillRect(rP + en.x*s - 1.5, rY + en.y*s - 1.5, 3, 3));
 
         if(joyL.active) drawJ(joyL.sx, joyL.sy, joyL.x, joyL.y);
         if(joyR.active) drawJ(joyR.sx, joyR.sy, joyR.x, joyR.y);
@@ -233,7 +235,11 @@
         document.getElementById('xp-fill').style.width = xp + "%";
     }
 
-    function drawJ(sx, sy, x, y) { ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx, sy, 50, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx+x, sy+y, 20, 0, Math.PI*2); ctx.stroke(); }
+    function drawJ(sx, sy, x, y) { 
+        ctx.strokeStyle="rgba(0,255,255,0.4)"; ctx.lineWidth=3; 
+        ctx.beginPath(); ctx.arc(sx, sy, 40, 0, Math.PI*2); ctx.stroke(); 
+        ctx.beginPath(); ctx.arc(sx+x, sy+y, 15, 0, Math.PI*2); ctx.stroke(); 
+    }
 
     window.addEventListener('touchstart', e => {
         for(let t of e.changedTouches) {
@@ -242,21 +248,17 @@
         }
     });
     window.addEventListener('touchmove', e => { 
-        e.preventDefault();
         for(let t of e.changedTouches) { 
-            if(t.identifier===joyL.id) { let dx=t.clientX-joyL.sx, dy=t.clientY-joyL.sy, d=Math.min(50, Math.hypot(dx,dy)); joyL.x=(dx/Math.hypot(dx,dy))*d; joyL.y=(dy/Math.hypot(dx,dy))*d; } 
-            if(t.identifier===joyR.id) { let dx=t.clientX-joyR.sx, dy=t.clientY-joyR.sy, d=Math.min(50, Math.hypot(dx,dy)); joyR.x=(dx/Math.hypot(dx,dy))*d; joyR.y=(dy/Math.hypot(dx,dy))*d; joyR.a=Math.atan2(dy, dx); } 
+            if(t.identifier===joyL.id) { let dx=t.clientX-joyL.sx, dy=t.clientY-joyL.sy, d=Math.min(40, Math.hypot(dx,dy)); joyL.x=(dx/Math.hypot(dx,dy))*d; joyL.y=(dy/Math.hypot(dx,dy))*d; } 
+            if(t.identifier===joyR.id) { let dx=t.clientX-joyR.sx, dy=t.clientY-joyR.sy, d=Math.min(40, Math.hypot(dx,dy)); joyR.x=(dx/Math.hypot(dx,dy))*d; joyR.y=(dy/Math.hypot(dx,dy))*d; joyR.a=Math.atan2(dy, dx); } 
         } 
-    }, {passive: false});
-    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; } } });
+    });
+    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; joyL.x=0; joyL.y=0; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; joyR.x=0; joyR.y=0; } } });
 
     document.getElementById('start-btn').onclick = () => { 
-        fixCanvas();
-        generateMap();
         document.getElementById('m-screen').classList.add('hidden'); 
         document.getElementById('ui-layer').classList.remove('hidden');
-        gameActive = true; 
-        loop(); 
+        fixCanvas(); generateMap(); gameActive = true; loop(); 
     };
 </script>
 </body>
