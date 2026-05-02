@@ -11,13 +11,10 @@
         #hud { position:fixed; top:10px; left:10px; display:flex; gap:10px; z-index:50; pointer-events:none; }
         .stat { background:rgba(0,0,0,0.8); padding:5px 12px; border:1px solid #00d4ff; border-radius:10px; font-size:14px; font-weight:bold; }
         
+        #record-hud { position: fixed; top: 120px; right: 15px; color: #00d4ff; font-weight: bold; text-shadow: 0 0 5px #000; z-index: 50; }
+
         #radar-container { position: fixed; top: 10px; right: 10px; width: 100px; height: 100px; background: rgba(0,20,40,0.7); border: 2px solid #00d4ff; border-radius: 50%; overflow: hidden; z-index: 50; }
         #radar-canvas { width: 100%; height: 100%; }
-
-        #orientation-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; 
-            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center;
-        }
 
         .menu-screen { 
             position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); 
@@ -33,29 +30,33 @@
         
         #shop-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100; padding:12px 30px; background:#00d4ff; color:black; border:none; border-radius:25px; font-weight:bold; }
         
-        #credits { position: fixed; bottom: 10px; right: 15px; font-size: 12px; color: rgba(0, 212, 255, 0.6); z-index: 50; pointer-events: none; }
+        #death-screen { display: none; background: rgba(20,0,0,0.95); z-index: 300; }
+        #death-screen h1 { color: #ff4444; font-size: 40px; margin-bottom: 10px; }
+
+        #orientation-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
     </style>
 </head>
 <body>
 
-<div id="orientation-overlay">
-    <h2 style="color:#00d4ff">ПОЖАЛУЙСТА, ПЕРЕВЕРНИТЕ ТЕЛЕФОН</h2>
-</div>
+<div id="orientation-overlay"><h2>ПОЖАЛУЙСТА, ПЕРЕВЕРНИТЕ ТЕЛЕФОН</h2></div>
 
 <div id="hud">
     <div class="stat">HP: <span id="hp">100</span></div>
     <div class="stat">$: <span id="money">800</span></div>
+    <div class="stat">KILLS: <span id="kills">0</span></div>
 </div>
 
+<div id="record-hud">BEST: <span id="best-hud">0</span></div>
 <div id="radar-container"><canvas id="radar-canvas"></canvas></div>
-<div id="credits">by Кирилл Пьяничук</div>
 
 <button id="shop-btn" onclick="toggleShop()">МАГАЗИН</button>
 
 <div id="ui-layer">
+    <!-- ГЛАВНОЕ МЕНЮ -->
     <div id="main-menu" class="menu-screen">
         <div class="menu-box">
             <h1 style="color:#00d4ff; margin:0">CRYSTAL BATTLE</h1>
+            <p style="color:#00d4ff">ВАШ РЕКОРД: <span id="menu-best">0</span></p>
             <div class="grid">
                 <button class="btn active" onclick="setMap(0, this)">АНГАР</button>
                 <button class="btn" onclick="setMap(1, this)">ЛАБИРИНТ</button>
@@ -70,19 +71,27 @@
         </div>
     </div>
 
+    <!-- ЭКРАН СМЕРТИ -->
+    <div id="death-screen" class="menu-screen">
+        <div class="menu-box" style="border-color: #ff4444;">
+            <h1>ВЫ ПРОИГРАЛИ!</h1>
+            <p id="death-stat" style="font-size: 20px;"></p>
+            <p id="new-record-msg" style="color: yellow; display: none; font-weight: bold;">НОВЫЙ РЕКОРД!</p>
+            <button class="btn" style="width:100%; font-size:20px; background:#ff4444; color:white; border:none;" onclick="location.reload()">В МЕНЮ</button>
+        </div>
+    </div>
+
+    <!-- МАГАЗИН -->
     <div id="shop-menu" class="menu-screen" style="display:none">
         <div class="menu-box">
             <h2>ОРУЖЕЙНАЯ</h2>
             <div class="grid">
                 <button class="btn" onclick="buy('ak47', 2500)">AK-47 ($2500)</button>
                 <button class="btn" onclick="buy('m4a1', 3100)">M4A1 ($3100)</button>
-                <button class="btn" onclick="buy('shotgun', 1200)">Дробовик ($1200)</button>
+                <button class="btn" onclick="buy('shotgun', 1200)">Shotgun ($1200)</button>
                 <button class="btn" onclick="buy('awp', 5000)">AWP ($5000)</button>
-                <button class="btn" onclick="buy('ump45', 1800)">UMP-45 ($1800)</button>
-                <button class="btn" onclick="buy('m249', 6000)">Пулемет ($6000)</button>
                 <button class="btn" onclick="buy('p90', 2300)">P90 ($2300)</button>
                 <button class="btn" onclick="buy('deagle', 850)">Deagle ($850)</button>
-                <button class="btn" onclick="buy('revolver', 1500)">Револьвер ($1500)</button>
                 <button class="btn" onclick="buy('hp', 500)">Аптечка ($500)</button>
             </div>
             <button class="btn" style="width:100%; border-color:red; color:red; margin-top: 10px;" onclick="toggleShop()">ЗАКРЫТЬ</button>
@@ -95,7 +104,6 @@
 <canvas id="game"></canvas>
 
 <script>
-// --- ЗВУКОВОЙ ДВИЖОК ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(freq, type, duration, vol) {
     const osc = audioCtx.createOscillator();
@@ -119,25 +127,25 @@ const sfx = {
     fail: () => playSound(50, 'sine', 0.5, 0.2)
 };
 
-// --- ОСНОВНАЯ ЛОГИКА ---
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 const rCanvas = document.getElementById('radar-canvas'), rCtx = rCanvas.getContext('2d');
 let world = { w: 3000, h: 2000 };
-let player = { x: 400, y: 400, hp: 100, money: 800, angle: 0, weapon: 'pistol', radius: 22, lastShot: 0, team: 'T', alive: true };
+let player = { x: 400, y: 400, hp: 100, money: 800, angle: 0, weapon: 'pistol', radius: 22, lastShot: 0, team: 'T', alive: true, kills: 0 };
 let enemies = [], bullets = [], walls = [], gameRunning = false, currentMap = 0, difficulty = 2;
+let bestScore = localStorage.getItem('crystal_battle_best') || 0;
 
-// Характеристики оружия
+// Инициализация рекорда в меню
+document.getElementById('menu-best').innerText = bestScore;
+document.getElementById('best-hud').innerText = bestScore;
+
 const weaponStats = {
-    'pistol':   { rate: 450,  damage: 20 },
-    'ak47':     { rate: 200,  damage: 25 },
-    'm4a1':     { rate: 150,  damage: 22 },
-    'shotgun':  { rate: 600,  damage: 45 },
-    'awp':      { rate: 1200, damage: 85 },
-    'ump45':    { rate: 180,  damage: 18 },
-    'm249':     { rate: 100,  damage: 14 },
-    'p90':      { rate: 90,   damage: 12 },
-    'deagle':   { rate: 450,  damage: 35 },
-    'revolver': { rate: 550,  damage: 40 }
+    'pistol': { rate: 450, damage: 20 },
+    'ak47': { rate: 200, damage: 25 },
+    'm4a1': { rate: 150, damage: 22 },
+    'shotgun': { rate: 600, damage: 45 },
+    'awp': { rate: 1200, damage: 90 },
+    'p90': { rate: 90, damage: 12 },
+    'deagle': { rate: 450, damage: 35 }
 };
 
 const jL = { active: false, id: -1, startX: 0, startY: 0, vx: 0, vy: 0 };
@@ -164,41 +172,28 @@ function toggleShop() {
 function buy(item, price) {
     if (player.money >= price) {
         player.money -= price;
-        if (item === 'hp') {
-            player.hp = 100;
-        } else {
-            player.weapon = item;
-        }
-        sfx.buy();
-        updateHUD();
-        toggleShop();
-    } else {
-        sfx.fail();
-    }
+        if (item === 'hp') player.hp = 100; else player.weapon = item;
+        sfx.buy(); updateHUD(); toggleShop();
+    } else sfx.fail();
 }
 
 function startGame() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     document.getElementById('main-menu').style.display = 'none';
-    initWalls();
-    spawnEnemies();
-    gameRunning = true;
-    requestAnimationFrame(loop);
+    initWalls(); spawnEnemies();
+    gameRunning = true; requestAnimationFrame(loop);
 }
 
 function initWalls() {
-    walls = [
-        {x:0, y:0, w:world.w, h:40}, {x:0, y:world.h-40, w:world.w, h:40},
-        {x:0, y:0, w:40, h:world.h}, {x:world.w-40, y:0, w:40, h:world.h}
-    ];
-    if (currentMap === 1) for(let i=0; i<5; i++) walls.push({x: 550*i, y: (i%2)*800, w: 100, h: 1200});
-    else if (currentMap === 2) walls.push({x: 800, y: 800, w: 400, h: 400}, {x: 1800, y: 400, w: 300, h: 300});
+    walls = [{x:0,y:0,w:world.w,h:40},{x:0,y:world.h-40,w:world.w,h:40},{x:0,y:0,w:40,h:world.h},{x:world.w-40,y:0,w:40,h:world.h}];
+    if (currentMap === 1) for(let i=0;i<5;i++) walls.push({x: 550*i, y: (i%2)*800, w: 100, h: 1200});
+    else if (currentMap === 2) walls.push({x:800,y:800,w:400,h:400},{x:1800,y:400,w:300,h:300});
     else walls.push({x: 600, y: 600, w: 1800, h: 80}, {x: 1000, y: 1200, w: 100, h: 600});
 }
 
 function spawnEnemies() {
     for(let i=0; i < 5 + difficulty*2; i++) {
-        enemies.push({ x: 1200 + Math.random()*1500, y: 200 + Math.random()*1600, hp: 80 + difficulty*10, alive: true, angle: 0, radius: 22, team: 'CT' });
+        enemies.push({ x: 1200+Math.random()*1500, y: 200+Math.random()*1600, hp: 80+difficulty*10, alive: true, angle: 0, radius: 22, team: 'CT' });
     }
 }
 
@@ -234,7 +229,7 @@ function showJoy(id, x, y) { let el = document.getElementById(id); el.style.visi
 function hideJoy(id) { document.getElementById(id).style.visibility = 'hidden'; }
 function updateJoy(t, data, id) {
     let dx = t.clientX - data.startX, dy = t.clientY - data.startY, dist = Math.min(Math.hypot(dx, dy), 40), angle = Math.atan2(dy, dx);
-    data.vx = Math.cos(angle) * (dist/40); data.vy = Math.sin(angle) * (dist/40);
+    data.vx = Math.cos(angle)*(dist/40); data.vy = Math.sin(angle)*(dist/40);
     document.querySelector(`#${id} .stick`).style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
 }
 
@@ -245,25 +240,28 @@ function resolveWall(obj) {
     });
 }
 
+function gameOver() {
+    gameRunning = false;
+    const isNewRecord = player.kills > bestScore;
+    if (isNewRecord) {
+        bestScore = player.kills;
+        localStorage.setItem('crystal_battle_best', bestScore);
+        document.getElementById('new-record-msg').style.display = 'block';
+    }
+    document.getElementById('death-stat').innerText = `УБИТО: ${player.kills} | РЕКОРД: ${bestScore}`;
+    document.getElementById('death-screen').style.display = 'flex';
+}
+
 function update() {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     player.x += jL.vx * 7; player.y += jL.vy * 7; resolveWall(player);
 
     if (jR.active) {
         player.angle = Math.atan2(jR.vy, jR.vx);
-        let stats = weaponStats[player.weapon] || weaponStats['pistol'];
-        
+        let stats = weaponStats[player.weapon];
         if (Date.now() - player.lastShot > stats.rate) {
-            bullets.push({
-                x: player.x,
-                y: player.y,
-                vx: Math.cos(player.angle)*20,
-                vy: Math.sin(player.angle)*20,
-                team: 'T',
-                damage: stats.damage
-            });
-            player.lastShot = Date.now();
-            player.weapon === 'pistol' ? sfx.shoot() : sfx.shootHeavy();
+            bullets.push({x: player.x, y: player.y, vx: Math.cos(player.angle)*20, vy: Math.sin(player.angle)*20, team: 'T', damage: stats.damage});
+            player.lastShot = Date.now(); sfx.shoot();
         }
     }
 
@@ -272,16 +270,9 @@ function update() {
         let dist = Math.hypot(player.x - e.x, player.y - e.y);
         if (dist < 700) {
             e.angle = Math.atan2(player.y - e.y, player.x - e.x);
-            e.x += Math.cos(e.angle) * (1.5 + difficulty/2); e.y += Math.sin(e.angle) * (1.5 + difficulty/2);
+            e.x += Math.cos(e.angle)*(1.5 + difficulty/2); e.y += Math.sin(e.angle)*(1.5 + difficulty/2);
             if (dist < 400 && Math.random() < 0.01 * difficulty) {
-                bullets.push({
-                    x: e.x,
-                    y: e.y,
-                    vx: Math.cos(e.angle)*15,
-                    vy: Math.sin(e.angle)*15,
-                    team: 'CT',
-                    damage: 10 * difficulty
-                });
+                bullets.push({x: e.x, y: e.y, vx: Math.cos(e.angle)*15, vy: Math.sin(e.angle)*15, team: 'CT', damage: 10 * difficulty});
                 sfx.shoot();
             }
         }
@@ -292,12 +283,10 @@ function update() {
         b.x += b.vx; b.y += b.vy;
         [player, ...enemies].forEach(t => {
             if (t.alive && t.team !== b.team && Math.hypot(b.x-t.x, b.y-t.y) < 25) {
-                t.hp -= b.damage || 20;
-                bullets.splice(i, 1);
-                sfx.hit();
-                if (t.hp <= 0) {
-                    t.alive = false;
-                    if (t !== player) player.money += 200;
+                t.hp -= b.damage; bullets.splice(i, 1); sfx.hit();
+                if (t.hp <= 0) { 
+                    t.alive = false; 
+                    if(t !== player) { player.money += 200; player.kills++; }
                 }
             }
         });
@@ -305,20 +294,14 @@ function update() {
     });
 
     if (enemies.filter(e => e.alive).length < 2) spawnEnemies();
-    updateHUD();
-    drawRadar();
-    
-    if (player.hp <= 0) {
-        gameRunning = false;
-        alert("ИГРА ОКОНЧЕНА");
-        location.reload();
-    }
+    updateHUD(); drawRadar();
+    if (player.hp <= 0 && gameRunning) gameOver();
 }
 
 function drawRadar() {
     rCanvas.width = 100; rCanvas.height = 100; rCtx.translate(50, 50);
-    walls.forEach(w => { rCtx.fillStyle = "rgba(0,212,255,0.2)"; rCtx.fillRect((w.x - player.x)*0.04, (w.y - player.y)*0.04, w.w*0.04, w.h*0.04); });
-    enemies.forEach(e => { if(e.alive) { rCtx.fillStyle = "red"; rCtx.beginPath(); rCtx.arc((e.x - player.x)*0.04, (e.y - player.y)*0.04, 2, 0, 7); rCtx.fill(); }});
+    walls.forEach(w => { rCtx.fillStyle = "rgba(0,212,255,0.2)"; rCtx.fillRect((w.x-player.x)*0.04, (w.y-player.y)*0.04, w.w*0.04, w.h*0.04); });
+    enemies.forEach(e => { if(e.alive) { rCtx.fillStyle = "red"; rCtx.beginPath(); rCtx.arc((e.x-player.x)*0.04, (e.y-player.y)*0.04, 2, 0, 7); rCtx.fill(); }});
 }
 
 function draw() {
@@ -341,15 +324,10 @@ function draw() {
 function updateHUD() {
     document.getElementById('hp').innerText = Math.max(0, Math.ceil(player.hp));
     document.getElementById('money').innerText = player.money;
+    document.getElementById('kills').innerText = player.kills;
 }
 
-function loop() {
-    if(gameRunning) {
-        update();
-        draw();
-        requestAnimationFrame(loop);
-    }
-}
+function loop() { if(gameRunning) { update(); draw(); requestAnimationFrame(loop); } }
 </script>
 </body>
 </html>
