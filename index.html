@@ -3,287 +3,243 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crystal Battle - Full Mobile</title>
+    <title>Crystal Battle: Full Fix</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; user-select: none; touch-action: none; color: #0ff; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; user-select: none; touch-action: none; color: #0ff; }
         canvas { display: block; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); z-index: 100; text-align: center;}
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); z-index: 100; text-align: center; }
         .hidden { display: none !important; }
-        h1 { font-size: 2.5em; text-shadow: 0 0 15px #0ff; margin-bottom: 10px; }
-        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 10px 25px; font-size: 1.1em; margin: 8px; cursor: pointer; text-transform: uppercase; }
-        button:active, button.active { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
-        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; text-shadow: 0 0 5px #0ff; font-size: 18px; font-weight: bold;}
-        #radar { position: absolute; top: 10px; right: 10px; width: 110px; height: 110px; border: 2px solid #0ff; border-radius: 50%; background: rgba(0,20,20,0.8); z-index: 50; overflow: hidden; }
-        .signature { position: absolute; bottom: 5px; right: 5px; color: rgba(0,255,255,0.4); font-size: 10px; z-index: 50;}
-        
-        /* Предупреждение о повороте экрана */
-        #orientation-warning { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; text-align: center; }
-        @media screen and (orientation: portrait) { #orientation-warning { display: flex; } }
+        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 8px 15px; font-size: 0.9em; margin: 4px; cursor: pointer; text-transform: uppercase; }
+        button:active, button.active { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
+        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 50; pointer-events: none; }
+        #xp-bar { width: 150px; height: 8px; border: 1px solid #0ff; margin-top: 4px; }
+        #xp-fill { width: 0%; height: 100%; background: #f0f; }
+        #live-shop-btn { position: absolute; top: 10px; right: 10px; z-index: 60; border-color: #f0f; color: #f0f; }
+        #shop-overlay { background: rgba(0,10,10,0.98); display: none; padding: 10px; z-index: 200; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; max-width: 500px; }
+        .item { border: 1px solid #0ff; padding: 5px; font-size: 0.8em; background: rgba(0,255,255,0.05); }
+        .map-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 10px; }
+        .sig { position: absolute; bottom: 5px; right: 5px; color: rgba(0,255,255,0.3); font-size: 10px; }
     </style>
 </head>
 <body>
 
-<!-- Предупреждение -->
-<div id="orientation-warning">
-    <h2>ПОЖАЛУЙСТА, ПЕРЕВЕРНИТЕ ТЕЛЕФОН</h2>
-    <p>Для игры нужен ландшафтный режим</p>
-</div>
+<audio id="m-music" src="menu-music.mp3" loop></audio>
+<audio id="s-shot" src="shot.mp3"></audio>
 
-<!-- Звуки -->
-<audio id="snd-shot" src="shot.mp3" preload="auto"></audio>
-<audio id="snd-expl" src="explosion.mp3" preload="auto"></audio>
-<audio id="snd-go" src="gameover.mp3" preload="auto"></audio>
-
-<!-- UI -->
 <div id="ui-layer" class="hidden">
-    <div>HP: <span id="hp-val">100</span></div>
-    <div>СЧЕТ: <span id="score-val">0</span></div>
+    <div>HP: <span id="h-v">100</span> | LVL: <span id="l-v">1</span></div>
+    <div id="xp-bar"><div id="xp-fill"></div></div>
+    <div style="color: #f0f;">💎: <span id="m-v">0</span></div>
 </div>
 
-<div id="radar" class="hidden"><canvas id="radar-canvas" width="110" height="110"></canvas></div>
+<button id="live-shop-btn" class="hidden">SHOP</button>
 
-<!-- Меню -->
-<div id="menu-screen" class="screen">
+<div id="m-screen" class="screen">
     <h1>CRYSTAL BATTLE</h1>
-    <div style="margin-bottom: 15px;">
-        <p>СЛОЖНОСТЬ:</p>
-        <button class="diff-btn active" data-diff="1">ЛЕГКО</button>
-        <button class="diff-btn" data-diff="2">НОРМА</button>
-        <button class="diff-btn" data-diff="3">ХАРД</button>
+    
+    <p>СЛОЖНОСТЬ:</p>
+    <div>
+        <button class="d-btn active" data-d="1">ЛЕГКО</button>
+        <button class="d-btn" data-d="2">НОРМА</button>
+        <button class="d-btn" data-d="3">ХАРД</button>
     </div>
-    <div style="margin-bottom: 15px;">
-        <p>КАРТА:</p>
-        <button class="map-btn active" data-map="empty">ПУСТОШЬ</button>
-        <button class="map-btn" data-map="lab">ЛАБИРИНТ</button>
-    </div>
-    <button id="start-btn" style="border-color: #f0f; color: #f0f; font-size: 1.4em;">ИГРАТЬ</button>
+
+    <p>КАРТА:</p>
+    <div class="map-grid" id="map-list"></div>
+    
+    <button id="start-btn" style="font-size: 1.5em; border-color: #f0f; margin-top:20px;">ИГРАТЬ</button>
+    <p style="font-size: 0.7em;">RECORD: <span id="b-s">0</span></p>
 </div>
 
-<!-- Game Over -->
+<div id="shop-overlay" class="screen">
+    <h2>SHOP</h2>
+    <p>💎: <span id="s-m">0</span></p>
+    <div class="grid" id="s-items"></div>
+    <button id="s-close">BACK</button>
+</div>
+
 <div id="go-screen" class="screen hidden">
-    <h1 style="color: #f00;">GAME OVER</h1>
-    <p>ВАШ РЕЗУЛЬТАТ: <span id="final-score">0</span></p>
-    <button onclick="location.reload()">В МЕНЮ</button>
+    <h1 style="color:red">DIED</h1>
+    <button onclick="location.reload()">MENU</button>
 </div>
 
-<div class="signature">by Кирилл Пьяничук</div>
-<canvas id="gameCanvas"></canvas>
+<div class="sig">by Кирилл Пьяничук</div>
+<canvas id="gC"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const radarCanvas = document.getElementById('radar-canvas');
-    const rctx = radarCanvas.getContext('2d');
+    const canvas = document.getElementById('gC'), ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    let stats = JSON.parse(localStorage.getItem('cb_v2')) || { money: 0, best: 0, unlocked: [0] };
+    const weapons = [
+        { n: "Pistol", p: 0, d: 10, s: 500, c: "#0ff", len: 25, w: 4 },
+        { n: "Uzi", p: 200, d: 12, s: 150, c: "#0f0", len: 20, w: 6 },
+        { n: "Shotgun", p: 500, d: 35, s: 900, c: "#ff0", len: 30, w: 10 },
+        { n: "Rifle", p: 1000, d: 45, s: 400, c: "#f0f", len: 40, w: 5 },
+        { n: "Plasma", p: 2000, d: 60, s: 300, c: "#fff", len: 35, w: 8 },
+        { n: "Minigun", p: 4000, d: 20, s: 80, c: "#f90", len: 45, w: 12 },
+        { n: "Sniper", p: 7000, d: 250, s: 1500, c: "#00f", len: 55, w: 4 },
+        { n: "Laser", p: 12000, d: 120, s: 200, c: "#f00", len: 50, w: 7 },
+        { n: "Bfg", p: 25000, d: 600, s: 2000, c: "#0f0", len: 40, w: 20 },
+        { n: "Zenith", p: 50000, d: 1200, s: 100, c: "#fff", len: 60, w: 15 }
+    ];
 
-    // Звуки
-    const sndShot = document.getElementById('snd-shot');
-    const sndExpl = document.getElementById('snd-expl');
-    const sndGo = document.getElementById('snd-go');
+    const maps = [
+        { n: "Пустошь", c: "#111" }, { n: "Лед", c: "#022" }, { n: "Ад", c: "#200" }, 
+        { n: "Лес", c: "#020" }, { n: "Песок", c: "#220" }, { n: "Ночь", c: "#001" }, 
+        { n: "Кибер", c: "#101" }, { n: "Токсин", c: "#120" }, { n: "Лава", c: "#310" }, { n: "Тьма", c: "#080808" }
+    ];
 
-    function playSnd(s) { s.currentTime = 0; s.play().catch(()=>{}); }
+    let gameActive = false, score = 0, xp = 0, lvl = 1, curW = 0, curM = 0, diff = 1;
+    let player = { x: 1250, y: 1250, hp: 100, max: 100, r: 20, lastS: 0, hit: 0 };
+    let enemies = [], pB = [], eB = [], worldSize = 2500;
+    let joyL = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1 };
+    let joyR = { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1, a: 0 };
 
-    // Переменные
-    let gameActive = false;
-    let score = 0;
-    let difficulty = 1;
-    let currentMap = 'empty';
-    let worldSize = 2500;
-    let player = { x: 1250, y: 1250, hp: 100, r: 20, speed: 6, hit: 0 };
-    let enemies = [];
-    let playerBullets = [];
-    let enemyBullets = [];
-    let walls = [];
+    // Инициализация меню
+    const mapList = document.getElementById('map-list');
+    maps.forEach((m, i) => {
+        const btn = document.createElement('button');
+        btn.innerText = m.n; btn.className = 'map-btn' + (i===0?' active':'');
+        btn.onclick = () => { document.querySelectorAll('.map-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); curM = i; };
+        mapList.appendChild(btn);
+    });
 
-    // Джойстики
-    let joyL = { active: false, sx: 0, sy: 0, x: 0, y: 0, id: -1 };
-    let joyR = { active: false, sx: 0, sy: 0, x: 0, y: 0, id: -1, angle: 0 };
+    document.querySelectorAll('.d-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.d-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active'); diff = parseInt(btn.dataset.d);
+        };
+    });
 
-    function initWalls() {
-        walls = [
-            {x:0, y:0, w:worldSize, h:15}, {x:0, y:worldSize-15, w:worldSize, h:15},
-            {x:0, y:0, w:15, h:worldSize}, {x:worldSize-15, y:0, w:15, h:worldSize}
-        ];
-        if(currentMap === 'lab') {
-            for(let i=0; i<15; i++) {
-                walls.push({x: Math.random()*(worldSize-300), y: Math.random()*(worldSize-300), w: 250, h: 25});
-            }
-        }
+    function buildShop() {
+        const grid = document.getElementById('s-items'); grid.innerHTML = '';
+        weapons.forEach((w, i) => {
+            const own = stats.unlocked.includes(i);
+            grid.innerHTML += `<div class="item"><span style="color:${w.c}">${w.n}</span><br>
+            <button onclick="buy(${i})" ${own && curW===i?'class="active"':''}>${own?(curW===i?'USE':'SET'):w.p+'💎'}</button></div>`;
+        });
+        document.getElementById('s-m').innerText = stats.money;
     }
 
-    // Тач-управление
-    window.addEventListener('touchstart', e => {
+    window.buy = (i) => {
+        if(stats.unlocked.includes(i)) { curW = i; }
+        else if(stats.money >= weapons[i].p) { stats.money -= weapons[i].p; stats.unlocked.push(i); curW = i; }
+        localStorage.setItem('cb_v2', JSON.stringify(stats)); buildShop();
+    };
+
+    function loop() {
         if(!gameActive) return;
-        for(let t of e.changedTouches) {
-            if(t.clientX < canvas.width/2 && joyL.id === -1) {
-                joyL.active = true; joyL.sx = t.clientX; joyL.sy = t.clientY; joyL.id = t.identifier;
-            } else if(joyR.id === -1) {
-                joyR.active = true; joyR.sx = t.clientX; joyR.sy = t.clientY; joyR.id = t.identifier;
-            }
-        }
-    });
-
-    window.addEventListener('touchmove', e => {
-        for(let t of e.changedTouches) {
-            if(t.identifier === joyL.id) { joyL.x = t.clientX - joyL.sx; joyL.y = t.clientY - joyL.sy; }
-            if(t.identifier === joyR.id) { 
-                joyR.x = t.clientX - joyR.sx; joyR.y = t.clientY - joyR.sy; 
-                joyR.angle = Math.atan2(joyR.y, joyR.x);
-            }
-        }
-    });
-
-    window.addEventListener('touchend', e => {
-        for(let t of e.changedTouches) {
-            if(t.identifier === joyL.id) { joyL.active = false; joyL.id = -1; joyL.x = 0; joyL.y = 0; }
-            if(t.identifier === joyR.id) { joyR.active = false; joyR.id = -1; joyR.x = 0; joyR.y = 0; }
-        }
-    });
-
-    function spawnEnemy() {
-        if(!gameActive) return;
-        let a = Math.random() * Math.PI * 2;
-        let d = 600;
-        let ex = player.x + Math.cos(a)*d;
-        let ey = player.y + Math.sin(a)*d;
-        enemies.push({ x: ex, y: ey, hp: 40, lastShot: 0, speed: 1.5 + difficulty*0.5 });
-    }
-    setInterval(spawnEnemy, 2000);
-
-    function update() {
-        if(!gameActive) return;
-
-        // Движение и стены
+        
+        // Движение игрока
         if(joyL.active) {
             let d = Math.hypot(joyL.x, joyL.y);
-            if(d > 5) {
-                let nx = player.x + (joyL.x/d)*player.speed;
-                let ny = player.y + (joyL.y/d)*player.speed;
-                let colX = false, colY = false;
-                walls.forEach(w => {
-                    if(nx+player.r > w.x && nx-player.r < w.x+w.w && player.y+player.r > w.y && player.y-player.r < w.y+w.h) colX = true;
-                    if(player.x+player.r > w.x && player.x-player.r < w.x+w.w && ny+player.r > w.y && ny-player.r < w.y+w.h) colY = true;
-                });
-                if(!colX) player.x = nx;
-                if(!colY) player.y = ny;
-            }
+            if(d > 5) { player.x += (joyL.x/d)*6; player.y += (joyL.y/d)*6; }
+        }
+        player.x = Math.max(20, Math.min(worldSize-20, player.x));
+        player.y = Math.max(20, Math.min(worldSize-20, player.y));
+
+        // Стрельба игрока
+        if(joyR.active && Date.now() - player.lastS > weapons[curW].s) {
+            pB.push({x: player.x, y: player.y, vx: Math.cos(joyR.a)*12, vy: Math.sin(joyR.a)*12, d: weapons[curW].d, c: weapons[curW].c});
+            player.lastS = Date.now(); document.getElementById('s-shot').cloneNode().play().catch(()=>{});
+        }
+        
+        // Спавн врагов
+        if(Math.random() < 0.02 * diff) {
+            let a = Math.random()*Math.PI*2;
+            enemies.push({x: player.x+Math.cos(a)*600, y: player.y+Math.sin(a)*600, hp: 20+(lvl*10), lastS: 0});
         }
 
-        // Стрельба игрока (моделька пушки)
-        if(joyR.active && Date.now() % 12 === 0) {
-            playerBullets.push({x: player.x, y: player.y, vx: Math.cos(joyR.angle)*10, vy: Math.sin(joyR.angle)*10});
-            playSnd(sndShot);
-        }
-
-        // ПРОВЕРКА УРОНА ПО ИГРОКУ
-        enemyBullets.forEach((eb, i) => {
-            eb.x += eb.vx; eb.y += eb.vy;
-            if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.r) {
-                player.hp -= 10 * difficulty;
-                player.hit = 10;
-                enemyBullets.splice(i, 1);
-                document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-                if(player.hp <= 0) {
-                    gameActive = false; playSnd(sndGo);
-                    document.getElementById('go-screen').classList.remove('hidden');
-                    document.getElementById('final-score').innerText = score;
-                }
-            }
-        });
-
-        // Враги
+        // Логика врагов
         enemies.forEach((en, i) => {
-            let d = Math.hypot(player.x - en.x, player.y - en.y);
-            en.x += ((player.x - en.x)/d) * en.speed;
-            en.y += ((player.y - en.y)/d) * en.speed;
+            let dist = Math.hypot(player.x-en.x, player.y-en.y);
+            en.x += (player.x-en.x)/dist * 2.5; en.y += (player.y-en.y)/dist * 2.5;
 
-            if(d < 500 && Date.now() - en.lastShot > 2000 / difficulty) {
-                enemyBullets.push({x: en.x, y: en.y, vx: ((player.x - en.x)/d)*6, vy: ((player.y - en.y)/d)*6});
-                en.lastShot = Date.now();
+            // БОТЫ СТРЕЛЯЮТ
+            if(dist < 500 && Date.now() - en.lastS > 2000 / diff) {
+                eB.push({x: en.x, y: en.y, vx: ((player.x-en.x)/dist)*6, vy: ((player.y-en.y)/dist)*6});
+                en.lastS = Date.now();
             }
 
-            playerBullets.forEach((pb, pbi) => {
-                if(Math.hypot(pb.x - en.x, pb.y - en.y) < 25) {
-                    enemies.splice(i, 1); playerBullets.splice(pbi, 1); score += 10;
-                    document.getElementById('score-val').innerText = score;
-                    playSnd(sndExpl);
+            pB.forEach((b, bi) => {
+                if(Math.hypot(b.x-en.x, b.y-en.y) < 25) {
+                    en.hp -= b.d; pB.splice(bi, 1);
+                    if(en.hp <= 0) { enemies.splice(i, 1); score += 10; xp += 20; stats.money += 5; }
                 }
             });
         });
 
-        playerBullets.forEach((b, i) => { b.x += b.vx; b.y += b.vy; if(Math.abs(b.x-player.x)>1000) playerBullets.splice(i,1); });
+        // Урон по игроку
+        eB.forEach((eb, i) => {
+            eb.x += eb.vx; eb.y += eb.vy;
+            if(Math.hypot(eb.x-player.x, eb.y-player.y) < player.r) {
+                player.hp -= 10 * diff; player.hit = 10; eB.splice(i, 1);
+            }
+            if(Math.abs(eb.x-player.x)>1000) eB.splice(i,1);
+        });
 
-        draw();
-        requestAnimationFrame(update);
+        pB.forEach((b, i) => { b.x += b.vx; b.y += b.vy; if(Math.abs(b.x-player.x)>1000) pB.splice(i,1); });
+
+        if(xp >= 100) { lvl++; xp = 0; player.max += 20; player.hp = player.max; }
+        if(player.hp <= 0) { gameActive = false; stats.best = Math.max(stats.best, score); localStorage.setItem('cb_v2', JSON.stringify(stats)); document.getElementById('go-screen').classList.remove('hidden'); }
+        
+        // UI
+        document.getElementById('h-v').innerText = Math.ceil(player.hp);
+        document.getElementById('l-v').innerText = lvl;
+        document.getElementById('m-v').innerText = stats.money;
+        document.getElementById('xp-fill').style.width = xp + "%";
+
+        draw(); requestAnimationFrame(loop);
     }
 
     function draw() {
-        ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.save();
-        ctx.translate(-player.x + canvas.width/2, -player.y + canvas.height/2);
-
-        // Мир
-        ctx.strokeStyle = '#222'; ctx.strokeRect(0,0,worldSize,worldSize);
-        ctx.fillStyle = '#111'; ctx.strokeStyle = '#0ff';
-        walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeRect(w.x, w.y, w.w, w.h); });
-
-        // Игрок
-        ctx.fillStyle = player.hit > 0 ? '#f00' : '#0ff';
+        ctx.fillStyle = maps[curM].c; ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.save(); ctx.translate(-player.x + canvas.width/2, -player.y + canvas.height/2);
+        
+        ctx.strokeStyle = "#333";
+        for(let i=0; i<=worldSize; i+=100) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,worldSize); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(worldSize,i); ctx.stroke(); }
+        
+        // Отрисовка игрока и ПУШКИ
+        ctx.fillStyle = player.hit > 0 ? "red" : "#0ff";
         if(player.hit > 0) player.hit--;
         ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
         
-        // Моделька пушки
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 6;
+        const w = weapons[curW];
+        ctx.strokeStyle = w.c; ctx.lineWidth = w.w;
         ctx.beginPath(); ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.x + Math.cos(joyR.angle)*35, player.y + Math.sin(joyR.angle)*35);
-        ctx.stroke();
+        ctx.lineTo(player.x + Math.cos(joyR.a)*w.len, player.y + Math.sin(joyR.a)*w.len); ctx.stroke();
 
-        // Враги
-        ctx.fillStyle = '#f0f';
-        enemies.forEach(en => { ctx.beginPath(); ctx.arc(en.x, en.y, 16, 0, Math.PI*2); ctx.fill(); });
-
-        // Пули
-        ctx.fillStyle = '#fff'; playerBullets.forEach(b => ctx.fillRect(b.x-2, b.y-2, 5, 5));
-        ctx.fillStyle = '#f00'; enemyBullets.forEach(b => ctx.fillRect(b.x-3, b.y-3, 8, 8));
+        ctx.fillStyle = "#f0f"; enemies.forEach(en => { ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI*2); ctx.fill(); });
+        ctx.fillStyle = "white"; pB.forEach(b => { ctx.fillStyle = b.c; ctx.fillRect(b.x-3, b.y-3, 6, 6); });
+        ctx.fillStyle = "red"; eB.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
 
         ctx.restore();
-        drawRadar();
-
-        if(joyL.active) drawJoy(joyL.sx, joyL.sy, joyL.x, joyL.y);
-        if(joyR.active) drawJoy(joyR.sx, joyR.sy, joyR.x, joyR.y);
+        if(joyL.active) drawJ(joyL.sx, joyL.sy, joyL.x, joyL.y);
+        if(joyR.active) drawJ(joyR.sx, joyR.sy, joyR.x, joyR.y);
     }
 
-    function drawJoy(sx, sy, x, y) {
-        ctx.strokeStyle = 'rgba(0,255,255,0.4)'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(sx, sy, 50, 0, Math.PI*2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(sx+x, sy+y, 25, 0, Math.PI*2); ctx.stroke();
-    }
+    function drawJ(sx, sy, x, y) { ctx.strokeStyle="rgba(0,255,255,0.3)"; ctx.beginPath(); ctx.arc(sx, sy, 50, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx+x, sy+y, 20, 0, Math.PI*2); ctx.stroke(); }
 
-    function drawRadar() {
-        rctx.fillStyle = 'rgba(0,20,20,0.8)'; rctx.fillRect(0,0,110,110);
-        let s = 110 / worldSize;
-        rctx.fillStyle = '#0ff'; rctx.fillRect(player.x*s-2, player.y*s-2, 4, 4);
-        rctx.fillStyle = '#f00'; enemies.forEach(en => rctx.fillRect(en.x*s-1, en.y*s-1, 2, 2));
-    }
-
-    // Логика кнопок
-    document.querySelectorAll('.diff-btn').forEach(b => b.onclick = () => {
-        document.querySelectorAll('.diff-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active'); difficulty = parseInt(b.dataset.diff);
+    window.addEventListener('touchstart', e => {
+        for(let t of e.changedTouches) {
+            if(t.clientX < canvas.width/2 && joyL.id === -1) { joyL.active=true; joyL.sx=t.clientX; joyL.sy=t.clientY; joyL.id=t.identifier; }
+            else if(joyR.id===-1) { joyR.active=true; joyR.sx=t.clientX; joyR.sy=t.clientY; joyR.id=t.identifier; }
+        }
     });
-    document.querySelectorAll('.map-btn').forEach(b => b.onclick = () => {
-        document.querySelectorAll('.map-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active'); currentMap = b.dataset.map;
-    });
+    window.addEventListener('touchmove', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.x=t.clientX-joyL.sx; joyL.y=t.clientY-joyL.sy; } if(t.identifier===joyR.id) { joyR.x=t.clientX-joyR.sx; joyR.y=t.clientY-joyR.sy; joyR.a=Math.atan2(joyR.y, joyR.x); } } });
+    window.addEventListener('touchend', e => { for(let t of e.changedTouches) { if(t.identifier===joyL.id) { joyL.active=false; joyL.id=-1; } if(t.identifier===joyR.id) { joyR.active=false; joyR.id=-1; } } });
 
-    document.getElementById('start-btn').onclick = () => {
-        document.getElementById('menu-screen').classList.add('hidden');
+    document.getElementById('start-btn').onclick = () => { 
+        document.getElementById('m-screen').classList.add('hidden'); 
         document.getElementById('ui-layer').classList.remove('hidden');
-        document.getElementById('radar').classList.remove('hidden');
-        gameActive = true; initWalls(); update();
+        document.getElementById('live-shop-btn').classList.remove('hidden');
+        gameActive = true; loop(); 
     };
+    document.getElementById('live-shop-btn').onclick = () => { document.getElementById('shop-overlay').style.display = 'flex'; buildShop(); };
+    document.getElementById('s-close').onclick = () => { document.getElementById('shop-overlay').style.display = 'none'; };
+    document.getElementById('b-s').innerText = stats.best;
 </script>
 </body>
 </html>
