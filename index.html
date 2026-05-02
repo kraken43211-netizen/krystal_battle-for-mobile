@@ -3,254 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crystal Battle Mobile - DMG FIXED</title>
+    <title>Crystal Battle - FIXED DMG</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; user-select: none; touch-action: none; color: #0ff; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; user-select: none; }
         canvas { display: block; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); z-index: 20; text-align: center;}
+        #ui { position: absolute; top: 10px; left: 10px; color: #0ff; font-size: 20px; font-weight: bold; text-shadow: 0 0 10px #0ff; pointer-events: none; }
+        #menu, #go { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: #0ff; }
         .hidden { display: none !important; }
-        button { background: transparent; border: 2px solid #0ff; color: #0ff; padding: 10px 30px; font-size: 1.2em; margin: 10px; cursor: pointer; text-transform: uppercase; }
-        button:hover, button.active { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
-        #ui-layer { position: absolute; top: 10px; left: 10px; z-index: 10; pointer-events: none; font-size: 20px; text-shadow: 0 0 5px #0ff; }
-        #radar { position: absolute; top: 10px; right: 10px; width: 120px; height: 120px; border: 2px solid #0ff; border-radius: 50%; background: rgba(0,20,20,0.8); z-index: 10; overflow: hidden; }
-        .signature { position: absolute; bottom: 5px; right: 5px; color: rgba(0,255,255,0.4); font-size: 10px; }
+        button { background: none; border: 2px solid #0ff; color: #0ff; padding: 15px 40px; margin: 10px; font-size: 18px; cursor: pointer; }
+        button:active { background: #0ff; color: #000; }
+        .sig { position: absolute; bottom: 5px; right: 5px; color: #555; font-size: 10px; }
+        #radar { position: absolute; top: 10px; right: 10px; width: 100px; height: 100px; border: 1px solid #0ff; border-radius: 50%; background: rgba(0,255,255,0.1); }
     </style>
 </head>
 <body>
 
-<div id="ui-layer" class="hidden">
-    <div style="color: #0ff;">HP: <span id="hp-val">100</span></div>
-    <div style="color: #f0f;">SCORE: <span id="score-val">0</span></div>
-</div>
+<div id="ui" class="hidden">HP: <span id="hp">100</span> | SCORE: <span id="score">0</span></div>
 
-<div id="radar" class="hidden"><canvas id="radar-canvas" width="120" height="120"></canvas></div>
-
-<div id="menu-screen" class="screen">
+<div id="menu">
     <h1>CRYSTAL BATTLE</h1>
-    <div style="margin: 20px;">
-        <p>СЛОЖНОСТЬ:</p>
-        <button class="diff-btn active" data-diff="1">ЛЕГКО</button>
-        <button class="diff-btn" data-diff="2">НОРМА</button>
-        <button class="diff-btn" data-diff="3">ХАРД</button>
-    </div>
-    <div style="margin: 20px;">
-        <p>КАРТА:</p>
-        <button class="map-btn active" data-map="empty">ПУСТОШЬ</button>
-        <button class="map-btn" data-map="lab">ЛАБИРИНТ</button>
-    </div>
-    <button id="start-btn" style="border-color: #f0f; color: #f0f; font-size: 1.5em;">ИГРАТЬ</button>
+    <button id="start">НАЧАТЬ ИГРУ</button>
+    <div class="sig">by Кирилл Пьяничук</div>
 </div>
 
-<div id="go-screen" class="screen hidden">
-    <h1 style="color: #f00;">GAME OVER</h1>
-    <p>СЧЕТ: <span id="final-score">0</span></p>
-    <button id="restart-btn">В МЕНЮ</button>
+<div id="go" class="hidden">
+    <h1 style="color:red">GAME OVER</h1>
+    <button onclick="location.reload()">РЕСТАРТ</button>
 </div>
 
-<div class="signature">by Кирилл Пьяничук</div>
-<canvas id="gameCanvas"></canvas>
+<div id="radar" class="hidden"><canvas id="rc" width="100" height="100"></canvas></div>
+
+<canvas id="c"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
-    const radarCanvas = document.getElementById('radar-canvas');
-    const radarCtx = radarCanvas.getContext('2d');
+    const hpEl = document.getElementById('hp');
+    const scoreEl = document.getElementById('score');
+    const rc = document.getElementById('rc');
+    const rctx = rc.getContext('2d');
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
     let gameActive = false;
+    let player = { x: 1000, y: 1000, hp: 100, r: 20, color: '#0ff', hit: 0 };
     let score = 0;
-    let difficulty = 1;
-    let currentMap = 'empty';
-    let worldSize = 2000;
-    let player = { x: 1000, y: 1000, hp: 100, radius: 20, speed: 5, color: '#0ff', flash: 0 };
     let enemies = [];
-    let playerBullets = [];
-    let enemyBullets = [];
-    let walls = [];
-    let joysticks = { left: { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1 }, right: { active: false, x: 0, y: 0, sx: 0, sy: 0, id: -1, angle: 0 } };
+    let pBullets = [];
+    let eBullets = [];
+    let worldSize = 2000;
 
-    function initWalls() {
-        walls = [{x:0, y:0, w:worldSize, h:10}, {x:0, y:worldSize-10, w:worldSize, h:10}, {x:0, y:0, w:10, h:worldSize}, {x:worldSize-10, y:0, w:10, h:worldSize}];
-        if(currentMap === 'lab') {
-            for(let i=0; i<12; i++) walls.push({x: Math.random()*1500, y: Math.random()*1500, w: 200, h: 20});
-        }
-    }
+    let joyL = { active: false, sx: 0, sy: 0, x: 0, y: 0, id: -1 };
+    let joyR = { active: false, sx: 0, sy: 0, x: 0, y: 0, id: -1, a: 0 };
 
-    // ТАЧИ
     window.addEventListener('touchstart', e => {
-        if(!gameActive) return;
         for(let t of e.changedTouches) {
-            if(t.clientX < canvas.width/2) { joysticks.left.active = true; joysticks.left.sx = t.clientX; joysticks.left.sy = t.clientY; joysticks.left.id = t.identifier; }
-            else { joysticks.right.active = true; joysticks.right.sx = t.clientX; joysticks.right.sy = t.clientY; joysticks.right.id = t.identifier; }
+            if(t.clientX < canvas.width/2 && joyL.id === -1) {
+                joyL.active = true; joyL.sx = t.clientX; joyL.sy = t.clientY; joyL.id = t.identifier;
+            } else if(joyR.id === -1) {
+                joyR.active = true; joyR.sx = t.clientX; joyR.sy = t.clientY; joyR.id = t.identifier;
+            }
         }
     });
 
     window.addEventListener('touchmove', e => {
         for(let t of e.changedTouches) {
-            if(t.identifier === joysticks.left.id) { joysticks.left.x = t.clientX - joysticks.left.sx; joysticks.left.y = t.clientY - joysticks.left.sy; }
-            if(t.identifier === joysticks.right.id) { 
-                joysticks.right.x = t.clientX - joysticks.right.sx; joysticks.right.y = t.clientY - joysticks.right.sy; 
-                joysticks.right.angle = Math.atan2(joysticks.right.y, joysticks.right.x);
+            if(t.identifier === joyL.id) { joyL.x = t.clientX - joyL.sx; joyL.y = t.clientY - joyL.sy; }
+            if(t.identifier === joyR.id) { 
+                joyR.x = t.clientX - joyR.sx; joyR.y = t.clientY - joyR.sy; 
+                joyR.a = Math.atan2(joyR.y, joyR.x);
             }
         }
     });
 
     window.addEventListener('touchend', e => {
         for(let t of e.changedTouches) {
-            if(t.identifier === joysticks.left.id) { joysticks.left.active = false; joysticks.left.x = joysticks.left.y = 0; joysticks.left.id = -1; }
-            if(t.identifier === joysticks.right.id) { joysticks.right.active = false; joysticks.right.x = joysticks.right.y = 0; joysticks.right.id = -1; }
+            if(t.identifier === joyL.id) { joyL.active = false; joyL.id = -1; joyL.x = 0; joyL.y = 0; }
+            if(t.identifier === joyR.id) { joyR.active = false; joyR.id = -1; joyR.x = 0; joyR.y = 0; }
         }
     });
 
-    function spawnEnemy() {
+    function spawn() {
         if(!gameActive) return;
-        let x = Math.random() * worldSize;
-        let y = Math.random() * worldSize;
-        if(Math.hypot(x-player.x, y-player.y) > 400) {
-            enemies.push({x, y, hp: 40, lastShot: 0, speed: 1 + difficulty});
-        }
+        let a = Math.random() * Math.PI * 2;
+        let d = 500 + Math.random() * 200;
+        enemies.push({
+            x: player.x + Math.cos(a) * d,
+            y: player.y + Math.sin(a) * d,
+            hp: 30,
+            lastShot: 0
+        });
     }
-    setInterval(spawnEnemy, 2000);
+    setInterval(spawn, 1500);
 
-    function update() {
+    function loop() {
         if(!gameActive) return;
 
-        // Движение
-        if(joysticks.left.active) {
-            let d = Math.hypot(joysticks.left.x, joysticks.left.y);
-            if(d > 5) {
-                let nx = player.x + (joysticks.left.x/d)*player.speed;
-                let ny = player.y + (joysticks.left.y/d)*player.speed;
-                let colX = false, colY = false;
-                walls.forEach(w => {
-                    if(nx+player.radius > w.x && nx-player.radius < w.x+w.w && player.y+player.radius > w.y && player.y-player.radius < w.y+w.h) colX = true;
-                    if(player.x+player.radius > w.x && player.x-player.radius < w.x+w.w && ny+player.radius > w.y && ny-player.radius < w.y+w.h) colY = true;
-                });
-                if(!colX) player.x = nx;
-                if(!colY) player.y = ny;
+        // Движение игрока
+        if(joyL.active) {
+            let dist = Math.hypot(joyL.x, joyL.y);
+            if(dist > 5) {
+                player.x += (joyL.x / dist) * 5;
+                player.y += (joyL.y / dist) * 5;
             }
         }
+
+        // Ограничение мира
+        player.x = Math.max(20, Math.min(worldSize - 20, player.x));
+        player.y = Math.max(20, Math.min(worldSize - 20, player.y));
 
         // Стрельба игрока
-        if(joysticks.right.active && Date.now() % 15 === 0) {
-            playerBullets.push({x: player.x, y: player.y, vx: Math.cos(joysticks.right.angle)*8, vy: Math.sin(joysticks.right.angle)*8});
+        if(joyR.active && Math.random() > 0.8) {
+            pBullets.push({ x: player.x, y: player.y, vx: Math.cos(joyR.a)*10, vy: Math.sin(joyR.a)*10 });
         }
 
-        // ПУЛИ ВРАГОВ И УРОН ПО ИГРОКУ (ГЛАВНОЕ!)
-        enemyBullets.forEach((b, i) => {
-            b.x += b.vx; b.y += b.vy;
-            let dist = Math.hypot(b.x - player.x, b.y - player.y);
-            if(dist < player.radius) {
-                player.hp -= 10 * difficulty; // Урон растет от сложности
-                player.flash = 5; // Мигание при уроне
-                enemyBullets.splice(i, 1);
-                document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-                if(player.hp <= 0) { gameActive = false; document.getElementById('go-screen').classList.remove('hidden'); document.getElementById('final-score').innerText = score; }
-            }
-            // Удаление при вылете за мир
-            if(b.x < 0 || b.x > worldSize || b.y < 0 || b.y > worldSize) enemyBullets.splice(i, 1);
-        });
-
-        // Враги
-        enemies.forEach((en, ei) => {
+        // Логика врагов
+        enemies.forEach((en, i) => {
             let d = Math.hypot(player.x - en.x, player.y - en.y);
-            en.x += ((player.x - en.x)/d) * en.speed;
-            en.y += ((player.y - en.y)/d) * en.speed;
+            
+            // Движение к игроку
+            en.x += ((player.x - en.x) / d) * 2;
+            en.y += ((player.y - en.y) / d) * 2;
 
-            if(d < 400 && Date.now() - en.lastShot > 2000 / difficulty) {
-                enemyBullets.push({x: en.x, y: en.y, vx: ((player.x - en.x)/d)*5, vy: ((player.y - en.y)/d)*5});
+            // Стрельба врага
+            if(Date.now() - en.lastShot > 1500 && d < 600) {
+                eBullets.push({ x: en.x, y: en.y, vx: ((player.x - en.x)/d)*6, vy: ((player.y - en.y)/d)*6 });
                 en.lastShot = Date.now();
             }
 
-            playerBullets.forEach((pb, pbi) => {
-                if(Math.hypot(pb.x - en.x, pb.y - en.y) < 20) {
-                    enemies.splice(ei, 1); playerBullets.splice(pbi, 1); score += 10;
-                    document.getElementById('score-val').innerText = score;
+            // Игрок попадает во врага
+            pBullets.forEach((pb, pbi) => {
+                if(Math.hypot(pb.x - en.x, pb.y - en.y) < 25) {
+                    enemies.splice(i, 1);
+                    pBullets.splice(pbi, 1);
+                    score += 10;
+                    scoreEl.innerText = score;
                 }
             });
         });
 
-        playerBullets.forEach((b, i) => { b.x += b.vx; b.y += b.vy; if(b.x<0||b.x>worldSize||b.y<0||b.y>worldSize) playerBullets.splice(i,1); });
+        // ПРОВЕРКА УРОНА ПО ИГРОКУ (ЖЕСТКАЯ)
+        eBullets.forEach((eb, i) => {
+            eb.x += eb.vx; eb.y += eb.vy;
+            
+            let distToPlayer = Math.hypot(eb.x - player.x, eb.y - player.y);
+            if(distToPlayer < player.r) {
+                player.hp -= 10;
+                player.hit = 10; // Эффект покраснения
+                eBullets.splice(i, 1);
+                hpEl.innerText = player.hp;
+                
+                if(player.hp <= 0) {
+                    gameActive = false;
+                    document.getElementById('go').classList.remove('hidden');
+                }
+            }
+
+            // Удаление пуль за экраном
+            if(Math.abs(eb.x - player.x) > 1000 || Math.abs(eb.y - player.y) > 1000) eBullets.splice(i, 1);
+        });
+
+        pBullets.forEach((pb, i) => {
+            pb.x += pb.vx; pb.y += pb.vy;
+            if(Math.abs(pb.x - player.x) > 1000 || Math.abs(pb.y - player.y) > 1000) pBullets.splice(i, 1);
+        });
 
         draw();
-        requestAnimationFrame(update);
+        requestAnimationFrame(loop);
     }
 
     function draw() {
-        ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
         ctx.save();
         ctx.translate(-player.x + canvas.width/2, -player.y + canvas.height/2);
 
-        // Стены
-        ctx.fillStyle = '#222'; ctx.strokeStyle = '#0ff';
-        walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeRect(w.x, w.y, w.w, w.h); });
+        // Границы мира
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(0, 0, worldSize, worldSize);
 
-        // Игрок (краснеет при уроне)
-        ctx.fillStyle = player.flash > 0 ? '#f00' : '#0ff';
-        if(player.flash > 0) player.flash--;
-        ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fill();
+        // Игрок
+        ctx.fillStyle = player.hit > 0 ? 'red' : '#0ff';
+        if(player.hit > 0) player.hit--;
+        ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
         
-        // Пушка игрока
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+        // Дуло пушки
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 5;
         ctx.beginPath(); ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.x + Math.cos(joysticks.right.angle)*30, player.y + Math.sin(joysticks.right.angle)*30);
+        ctx.lineTo(player.x + Math.cos(joyR.a)*35, player.y + Math.sin(joyR.a)*35);
         ctx.stroke();
 
         // Враги
         ctx.fillStyle = '#f0f';
-        enemies.forEach(en => { ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI*2); ctx.fill(); });
+        enemies.forEach(en => {
+            ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI*2); ctx.fill();
+        });
 
         // Пули
-        ctx.fillStyle = '#fff'; playerBullets.forEach(b => ctx.fillRect(b.x, b.y, 5, 5));
-        ctx.fillStyle = '#f00'; enemyBullets.forEach(b => ctx.fillRect(b.x, b.y, 8, 8)); // ПУЛИ ВРАГОВ ТЕПЕРЬ БОЛЬШИЕ
+        ctx.fillStyle = '#fff'; pBullets.forEach(b => ctx.fillRect(b.x-2, b.y-2, 5, 5));
+        ctx.fillStyle = '#f00'; eBullets.forEach(b => ctx.fillRect(b.x-3, b.y-3, 8, 8));
 
         ctx.restore();
 
-        // РАДАР
+        // Радар
         drawRadar();
 
         // Джойстики
-        if(joysticks.left.active) drawJoy(joysticks.left.sx, joysticks.left.sy, joysticks.left.x, joysticks.left.y);
-        if(joysticks.right.active) drawJoy(joysticks.right.sx, joysticks.right.sy, joysticks.right.x, joysticks.right.y);
+        if(joyL.active) drawJoy(joyL.sx, joyL.sy, joyL.x, joyL.y);
+        if(joyR.active) drawJoy(joyR.sx, joyR.sy, joyR.x, joyR.y);
     }
 
     function drawJoy(sx, sy, x, y) {
-        ctx.strokeStyle = 'rgba(0,255,255,0.3)'; ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(0,255,255,0.3)';
         ctx.beginPath(); ctx.arc(sx, sy, 50, 0, Math.PI*2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(sx+x, sy+y, 25, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx+x, sy+y, 20, 0, Math.PI*2); ctx.stroke();
     }
 
     function drawRadar() {
-        radarCtx.fillStyle = 'rgba(0,20,20,0.8)'; radarCtx.fillRect(0,0,120,120);
-        let s = 120 / worldSize;
-        radarCtx.fillStyle = '#0ff'; radarCtx.fillRect(player.x*s-2, player.y*s-2, 4, 4);
-        radarCtx.fillStyle = '#f00'; enemies.forEach(en => radarCtx.fillRect(en.x*s-1, en.y*s-1, 2, 2));
-        radarCtx.strokeStyle = 'rgba(0,255,255,0.2)'; walls.forEach(w => radarCtx.strokeRect(w.x*s, w.y*s, w.w*s, w.h*s));
+        rctx.clearRect(0,0,100,100);
+        let s = 100/worldSize;
+        rctx.fillStyle = '#0ff'; rctx.fillRect(player.x*s-2, player.y*s-2, 4, 4);
+        rctx.fillStyle = '#f0f'; enemies.forEach(en => rctx.fillRect(en.x*s-1, en.y*s-1, 2, 2));
     }
 
-    document.querySelectorAll('.diff-btn').forEach(b => b.onclick = () => {
-        document.querySelectorAll('.diff-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active'); difficulty = parseInt(b.dataset.diff);
-    });
-    document.querySelectorAll('.map-btn').forEach(b => b.onclick = () => {
-        document.querySelectorAll('.map-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active'); currentMap = b.dataset.map;
-    });
-
-    document.getElementById('start-btn').onclick = () => {
-        gameActive = true; score = 0; player.hp = 100; enemies = []; playerBullets = []; enemyBullets = [];
-        initWalls();
-        document.getElementById('menu-screen').classList.add('hidden');
-        document.getElementById('ui-layer').classList.remove('hidden');
+    document.getElementById('start').onclick = () => {
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('ui').classList.remove('hidden');
         document.getElementById('radar').classList.remove('hidden');
-        update();
+        gameActive = true;
+        loop();
     };
-    document.getElementById('restart-btn').onclick = () => {
-        location.reload();
-    };
-
 </script>
 </body>
 </html>
